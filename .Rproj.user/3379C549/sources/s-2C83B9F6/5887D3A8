@@ -1,0 +1,26 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1602173518674.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1001912969",
+    "id" : "5887D3A8",
+    "lastKnownWriteTime" : 1602180083,
+    "last_content_update" : 1602180083049,
+    "path" : "~/GitHub/Stock_Forecast_Recommendation_Tool/modules/Testarea.R",
+    "project_path" : "modules/Testarea.R",
+    "properties" : {
+        "cursorPosition" : "67,49",
+        "scrollLine" : "39",
+        "tempName" : "Untitled1"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

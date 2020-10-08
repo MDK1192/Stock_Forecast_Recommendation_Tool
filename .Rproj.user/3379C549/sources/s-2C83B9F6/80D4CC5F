@@ -1,0 +1,33 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1602174863964.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "80D4CC5F",
+    "lastKnownWriteTime" : 2314861393405687860,
+    "last_content_update" : 1602174863964,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "E275D2B3",
+        "caption" : "symbols",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=symbols&cache_key=E275D2B3",
+        "displayedObservations" : "3731",
+        "environment" : "",
+        "expression" : "symbols",
+        "object" : "symbols",
+        "preview" : "0",
+        "totalObservations" : "3731",
+        "variables" : "2"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 4,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

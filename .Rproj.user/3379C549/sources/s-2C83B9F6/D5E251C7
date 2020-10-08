@@ -1,0 +1,33 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1602175434112.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "D5E251C7",
+    "lastKnownWriteTime" : 4702077119032618857,
+    "last_content_update" : 1602175434112,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "D3BF641C",
+        "caption" : "AACQU",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=AACQU&cache_key=D3BF641C",
+        "displayedObservations" : 61,
+        "environment" : "",
+        "expression" : "AACQU",
+        "object" : "AACQU",
+        "preview" : 0,
+        "totalObservations" : 61,
+        "variables" : 6
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 7,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

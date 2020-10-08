@@ -1,0 +1,33 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1602174191501.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "BB5953CD",
+    "lastKnownWriteTime" : 7954892334483857268,
+    "last_content_update" : 1602174191501,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "BE8FF34F",
+        "caption" : "SPY",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=SPY&cache_key=BE8FF34F",
+        "displayedObservations" : "3466",
+        "environment" : "",
+        "expression" : "SPY",
+        "object" : "SPY",
+        "preview" : "0",
+        "totalObservations" : "3466",
+        "variables" : "6"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

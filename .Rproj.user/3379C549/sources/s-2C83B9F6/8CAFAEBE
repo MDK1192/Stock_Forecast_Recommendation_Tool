@@ -1,0 +1,33 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1602176168005.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "8CAFAEBE",
+    "lastKnownWriteTime" : 3168218682992,
+    "last_content_update" : 1602176168005,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "17A3880D",
+        "caption" : "AEZS",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=AEZS&cache_key=17A3880D",
+        "displayedObservations" : 446,
+        "environment" : "",
+        "expression" : "AEZS",
+        "object" : "AEZS",
+        "preview" : 0,
+        "totalObservations" : 446,
+        "variables" : 6
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 9,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}
