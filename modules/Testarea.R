@@ -52,23 +52,49 @@ https://plotly.com/r/line-and-scatter/
   https://otexts.com/fpp2/the-forecast-package-in-r.html
 
 
+train <- window(AEY$AEY.Adjusted, start=min(index(AEY)) , end = (max(index(AEY) - 12)))
+
+n=36
+
+meanf(train,h=n)$mean
+naive(train,h=n)$mean
+snaive(train,h=n)$mean
+rwf(train,h=n)$mean
+croston(train,h=n)$mean
+stlf(train,h=n)$mean
+ses(train,h=n)$mean
+holt(train,h=n)$mean
+hw(train,h=n)$mean
+splinef(train,h=n)$mean
+thetaf(train,h=n)$mean
+a <- ets(train) %>% forecast(h = n)
+b <- tbats(train) %>% forecast(h = n)
+c <- auto.arima(train) %>% forecast(h = n)
 
 
-meanf(data$AEY.Adjusted,h=6)
-naive(data$AEY.Adjusted,h=6)
-snaive(data$AEY.Adjusted,h=6)
-rwf(data$AEY.Adjusted,h=6)
-croston(data$AEY.Adjusted,h=6)
-stlf(data$AEY.Adjusted,h=6)
-ses(data$AEY.Adjusted,h=6)
-holt(data$AEY.Adjusted,h=6) 
-hw(data$AEY.Adjusted,h=6)
-splinef(data$AEY.Adjusted,h=6)
-thetaf(data$AEY.Adjusted,h=6) 
-auto.arima(data$AEY.Adjusted) %>% forecast(h = 6)
+
+accuracy(meanf(train,h=n)$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY$AEY.Adjusted)])
+accuracy(naive(train,h=n)$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY$AEY.Adjusted)])
+accuracy(snaive(train,h=n)$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY$AEY.Adjusted)])
+accuracy(rwf(train,h=n)$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY$AEY.Adjusted)])
+accuracy(croston(train,h=n)$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY$AEY.Adjusted)])
+accuracy(stlf(train,h=n)$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY$AEY.Adjusted)])
+accuracy(ses(train,h=n)$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY$AEY.Adjusted)])
+accuracy(holt(train,h=n)$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY$AEY.Adjusted)])
+accuracy(hw(train,h=n)$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY$AEY.Adjusted)])
+accuracy(splinef(train,h=n)$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY$AEY.Adjusted)])
+accuracy(thetaf(train,h=n)$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY$AEY.Adjusted)])
+accuracy(a$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY$AEY.Adjusted)])
+accuracy(b$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY$AEY.Adjusted)])
+accuracy(c$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY$AEY.Adjusted)])
+
+https://rdrr.io/cran/forecast/man/tsCV.html
+e <- tsCV(train, meanf, h=2)
 
 
-plot(auto.arima(data$AEY.Adjusted), h=6)
+
+
+plot(auto.arima(data$AEY.Adjusted), h=n)
 
 
 data <- data.frame(x, trace_0, trace_1, trace_2)
