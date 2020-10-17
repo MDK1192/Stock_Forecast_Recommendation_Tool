@@ -5,6 +5,7 @@ library(zoo)
 library(quantmod)
 library(Quandl)
 library(forecast)
+library(RCrawler)
 
 getSymbols(a, from = "2000-01-01", to = "2016-06-30", auto.assign = T)
 
@@ -89,9 +90,12 @@ accuracy(b$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY
 accuracy(c$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY$AEY.Adjusted)])
 
 https://rdrr.io/cran/forecast/man/tsCV.html
-e <- tsCV(train, meanf, h=2)
+https://robjhyndman.com/hyndsight/tscv/
+e <- tsCV(train, ses, h=365)
 
+sqrt(mean(e^2, na.rm=TRUE))
 
+colMeans(e^2, na.rm=T)
 
 
 plot(auto.arima(data$AEY.Adjusted), h=n)
