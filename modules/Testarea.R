@@ -6,8 +6,11 @@ library(quantmod)
 library(Quandl)
 library(forecast)
 library(RCrawler)
+library(rvest)
+library(data.table)
+getSymbols('TSLA', auto.assign = T)
 
-getSymbols(a, from = "2000-01-01", to = "2016-06-30", auto.assign = T)
+getSymbols('TSLA', from = "2000-01-01", to = "2016-06-30", auto.assign = T)
 
 Quandl(c('QQQ','SPY'))
 
@@ -109,4 +112,25 @@ fig <- fig %>% add_trace(y = ~trace_1, name = 'trace 1', mode = 'lines+markers')
 fig <- fig %>% add_trace(y = ~trace_2, name = 'trace 2', mode = 'markers')
 
 fig
+
+
+test <- read_html("https://www.finanzen.net/news/bayer-news") %>%
+  html_nodes("p") %>%
+  html_text()
+
+urls <- read_html("https://www.finanzen.net/news/bayer-news") %>%
+  html_nodes("td a") %>%
+  html_attr("href")
+  
+test_df <- data.frame(url = urls)
+test_df <- data.frame(url = urls[urls %like% "/nachricht/aktien/"])
+
+test_df$text <- "Placeholder"
+
+for(i in 1:nrow(test_df)){
+  test_df$text[i] <- read_html("https://www.finanzen.net/nachricht/aktien/bayer-truemmer-unter-dem-bayer-kreuz-9400279") %>%
+    html_node("#news-container") %>%
+    html_text() %>%
+    
+}
 
