@@ -8,7 +8,10 @@ library(forecast)
 library(RCrawler)
 library(rvest)
 library(data.table)
-getSymbols('TSLA', auto.assign = T)
+library(imputeTS)
+library(tsibble)
+
+getSymbols(auto.assign = T)
 
 getSymbols('TSLA', from = "2000-01-01", to = "2016-06-30", auto.assign = T)
 
@@ -22,7 +25,7 @@ symbols <- na.omit(symbols)
 
 #todo: whole nasdaq there choose what to pick?
 for (i in 1:length(symbols$Symbol)){
-  try(getSymbols(symbols$Symbol[i], from = "2019-01-01", auto.assign = T))
+  try(getSymbols(symbols$Symbol[i], from = "2017-01-01", auto.assign = T))
 }
 
 
@@ -56,7 +59,7 @@ https://plotly.com/r/line-and-scatter/
   https://otexts.com/fpp2/the-forecast-package-in-r.html
 
 
-train <- window(AEY$AEY.Adjusted, start=min(index(AEY)) , end = (max(index(AEY) - 12)))
+train <- window(AEY$AEY.Adjusted, start=min(index(AEY)) , end = (max(index(AEY) - 36)))
 
 n=36
 
@@ -92,9 +95,93 @@ accuracy(a$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY
 accuracy(b$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY$AEY.Adjusted)])
 accuracy(c$mean, AEY$AEY.Adjusted[(length(AEY$AEY.Adjusted) - (n-1)) :length(AEY$AEY.Adjusted)])
 
-https://rdrr.io/cran/forecast/man/tsCV.html
-https://robjhyndman.com/hyndsight/tscv/
-e <- tsCV(train, ses, h=365)
+
+h_vec <- seq(10, 360, 10) 
+h_vec
+df_fc_acc <- data.frame("h_vec" = h_vec, "meanf" = NA, "ses"=NA)
+
+
+
+
+
+
+d <- xts(start(min(AEY)),end)
+
+dates <- seq.Date(from=min(index(AEY)), to=max(index(AEY)), by="days")
+
+xts <- xts(x=rep(NA, length(dates)), order.by=dates)
+xts_imp <- na.locf(merge(xts, AEY, join = "left"))
+
+train <- window(xts_imp$AEY.Adjusted, start=min(index(xts_imp)), end = (max(index(xts_imp)) - 360))
+test <- window(xts_imp$AEY.Adjusted, start=max(index(xts_imp)) - 359)
+
+for(i in h_vec){
+  a <- meanf(train,h=i)$mean
+  b <- ses(train,h=i)$mean
+  c <- holt(train,h=i)$mean
+  d <- ets(train) %>% forecast(h = i)
+  #e <- tbats(train) %>% forecast(h = i)
+  f <- auto.arima(train) %>% forecast(h = i)
+  df_fc_acc$meanf[df_fc_acc$h_vec == i] <- sqrt((test[i]-max(a))^2)
+  df_fc_acc$ses[df_fc_acc$h_vec == i] <- sqrt((test[i]-max(b))^2)
+  df_fc_acc$holt[df_fc_acc$h_vec == i] <- sqrt((test[i]-max(c))^2)
+  df_fc_acc$ets[df_fc_acc$h_vec == i] <- sqrt((test[i]-max(d$mean))^2)
+  #df_fc_acc$tbats[df_fc_acc$h_vec == i] <- sqrt((test[i]-max(e$mean))^2)
+  df_fc_acc$auto.arima[df_fc_acc$h_vec == i] <- sqrt((test[i]-max(f$mean))^2)
+}
+
+
+
+dates <- seq.Date(from=min(index(test)), to=max(index(test)), by="days")
+a_xts <- xts(x=a, order.by=dates)
+b_xts <- xts(x=b, order.by=dates)
+c_xts <- xts(x=c, order.by=dates)
+d_xts <- xts(x=d$mean, order.by=dates)
+#e_xts <- xts(x=e, order.by=dates)
+f_xts <- xts(x=f$mean, order.by=dates)
+
+
+trace_0 <- data.frame(date=index(train), coredata(train))
+trace_1 <- data.frame(date=index(test), coredata(test))
+trace_2 <- data.frame(date=index(a_xts), coredata(a_xts))
+trace_3 <- data.frame(date=index(b_xts), coredata(b_xts))
+trace_4 <- data.frame(date=index(c_xts), coredata(c_xts))
+trace_5 <- data.frame(date=index(d_xts), coredata(d_xts))
+#trace_6 <- data.frame(date=index(e_xts), coredata(e_xts))
+trace_7 <- data.frame(date=index(f_xts), coredata(f_xts))
+
+
+
+x <- seq.Date(from=min(index(train)), to=max(index(test)) + 360, by="days")
+
+data <- data.frame("date"=x)
+data <- merge(data, trace_0, by="date", all.x = TRUE)
+data <- merge(data, trace_1, by="date", all.x = TRUE)
+data <- merge(data, trace_2, by="date", all.x = TRUE)
+data <- merge(data, trace_3, by="date", all.x = TRUE)
+data <- merge(data, trace_4, by="date", all.x = TRUE)
+data <- merge(data, trace_5, by="date", all.x = TRUE)
+#data <- merge(data, trace_6, by="date", all.x = TRUE)
+data <- merge(data, trace_7, by="date", all.x = TRUE)
+
+
+names(data) <- c("date", "train", "test", "meanf", "ses", "holt","ets", "autoarima")
+
+fig <- plot_ly(data, x=~date, y = ~train, name = 'train', type = 'scatter', mode = 'lines') 
+fig <- fig %>% add_trace(y = ~test, name = 'test', mode = 'lines') 
+fig <- fig %>% add_trace(y = ~meanf, name = 'meanf', mode = 'lines')
+fig <- fig %>% add_trace(y = ~ses, name = 'ses', mode = 'lines')
+fig <- fig %>% add_trace(y = ~holt, name = 'holt', mode = 'lines')
+fig <- fig %>% add_trace(y = ~ets, name = 'ets', mode = 'lines')
+#fig <- fig %>% add_trace(y = ~tbats, name = 'tbats', mode = 'lines')
+fig <- fig %>% add_trace(y = ~autoarima, name = 'autoarima', mode = 'lines')
+
+
+fig
+
+
+
+e <- tsCV(train, ses, h=36)
 
 sqrt(mean(e^2, na.rm=TRUE))
 

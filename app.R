@@ -30,7 +30,14 @@ ui <- dashboardPage(
     dashboardBody(
         tabItems(
             tabItem(tabName = "tab1",
-                    h2("Placeholder")
+                    h2("Placeholder"),
+                    tabBox(
+                      title = "First tabBox",
+                      # The id lets us use input$tabset1 on the server to find the current tab
+                      id = "tabset1",
+                      tabPanel("Tab1", "Tab content 1"),
+                      tabPanel("Tab2", "Tab content 2")
+                    )
             ),
             tabItem(tabName = "tab2",
                     h2("Placeholder")
