@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1603740624943.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "74E5EBB7",
+    "lastKnownWriteTime" : 1603744554,
+    "last_content_update" : 1603744554958,
+    "path" : "~/GitHub/Stock_Forecast_Recommendation_Tool/app.R",
+    "project_path" : "app.R",
+    "properties" : {
+        "cursorPosition" : "106,34",
+        "scrollLine" : "83"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 14,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

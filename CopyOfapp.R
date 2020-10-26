@@ -9,24 +9,24 @@
 
 library(shiny)
 library(shinydashboard)
-# library(ggplot2)
-# library(plotly)
-# library(xts)
-# library(zoo)
-# library(quantmod)
-# library(Quandl)
-# library(forecast)
-# #library(RCrawler)
-# library(DT)
-# library(rvest)
-# library(data.table)
-# library(imputeTS)
-# library(tsibble)
-# library(TTR)
+library(ggplot2)
+library(plotly)
+library(xts)
+library(zoo)
+library(quantmod)
+library(Quandl)
+library(forecast)
+#library(RCrawler)
+library(DT)
+library(rvest)
+library(data.table)
+library(imputeTS)
+library(tsibble)
+library(TTR)
 
-# source("modules/module1.R")
-# source("modules/module2.R")
-# source("modules/module3.R")
+source("modules/module1.R")
+source("modules/module2.R")
+source("modules/module3.R")
 
 
 ui <- dashboardPage(
@@ -56,7 +56,7 @@ ui <- dashboardPage(
                     ),
                       
                     box(width = 12,
-                        box(width = 8, plotlyOutput("plot1"),title = "Kursuebersicht grafisch"),
+                        box(width = 8, plotlyOutput("placeholder1"),title = "Kursuebersicht grafisch"),
                         box(width = 4,DTOutput("stockTable"),title = "Kursuebersicht tabellarisch")
                     ),
             ),
@@ -73,7 +73,7 @@ ui <- dashboardPage(
             ),
             tabItem(tabName = "trades",
                     h2("Trades"),
-                    box(width = 12,DTOutput("placeholder8"),title = "Fehlerausgabe")
+                    box(width = 12,DTOutput("placeholder4"),title = "Fehlerausgabe")
             ),
             tabItem(tabName = "kursindikator",
                     h2("Kursindikatoren"),
@@ -92,33 +92,19 @@ ui <- dashboardPage(
 
 #server/logic content
 server <- function(input, output, session) {
-
-  observeEvent(input$loader, {
+  print("klappt")
+  observe(input$loader, {
+    print("klappt")
+    browser()
     symbols <- stockSymbols("NASDAQ")[,c(1:2)]
     symbols <- na.omit(symbols)
     symbols <- symbols[1:10,]
-  
+
     for (i in 1:length(symbols$Symbol)){
       try(getSymbols(symbols$Symbol[i], from = "2017-01-01", to="2019-01-01" ,auto.assign = T))
     }
-    data <- AACG
+
     output$stockTable <- renderDataTable(data,options= list(scrollY = TRUE,pageLength = 5))
-    
-    output$plot1 <- renderPlotly({
-      data_plot <- data.frame("Date"=index(AACG), "Values" = AACG$AACG.Adjusted)
-
-      plot_ly(data_plot, x = ~Date, y = ~AACG.Adjusted, type = 'scatter', mode = 'lines', 
-              line = list(color = "rgb(0, 0, 0)")) %>%
-        layout(title = "Date",
-               xaxis = list(title = "Date",
-                            zeroline = FALSE),
-               yaxis = list(title = "Price",
-                            zeroline = FALSE))
-    })
-    
-    
-
-    
   })
 
 }

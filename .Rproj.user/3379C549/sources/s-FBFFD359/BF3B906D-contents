@@ -1,0 +1,259 @@
+#
+# This is a Shiny web application. You can run the application by clicking
+# the 'Run App' button above.
+#
+# Find out more about building applications with Shiny here:
+#
+#    http://shiny.rstudio.com/
+#
+#importing required libraries
+library(shiny)
+library(twitteR)
+library(shinydashboard)
+library(DT)
+library(sentimentr)
+library(SentimentAnalysis)
+library(dplyr)
+library(plotly)
+library(tm)
+library(qdap)
+library(lubridate)
+library(readxl)
+library(tidytext)
+library(lubridate)
+library(ggplot2)
+library(rtweet)
+
+#Create UI Content
+ui <- dashboardPage(
+  #Header Content
+  dashboardHeader(title = "Sentiment-Dashboard"),
+  #Sidebar Content
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Landing Page", tabName = "landingpage", icon = icon("th")),
+      menuItem("Sentiment_Overview", tabName = "sentiment_overview", icon = icon("th")),
+      menuItem("Sentiment_Summarized", tabName = "sentiment_summarized", icon = icon("th")),
+      menuItem("Sentiment_Detailed", tabName = "sentiment_detailed", icon = icon("th"))
+    )
+  ),
+  #Body Content
+  dashboardBody(
+    tabItems(
+      tabItem(tabName = "landingpage",
+              h2("Landing Page MBB19 Sentiment-Tool"),
+              box(width = 12,
+                  box(width = 6, fileInput("file", label = h3("Upload credentials in .xlsx Format"))),
+                  box(width = 6,textInput("hashtag", label = h3("Enter Searchterm"), value = "")),
+                  box(width = 12, sliderInput("numberslider", label = h3("Enter Number of Tweets"), min = 100, max = 10000, value = 1000))),
+              box(width = 12,
+                  box(width = 6, actionButton("loadButton", label = "Load Data", width = '100%')),
+                  box(width = 6, actionButton("startButton", label = "Start Sentiment Analysis", width = '100%'))),
+              box(width = 12,DTOutput("data_raw"),title = "Imported Data (Raw)")
+      ),
+      tabItem(tabName = "sentiment_overview",
+              h2("Sentiments in Overview"),
+              box(width = 12,DTOutput("data_clean"),title = "Imported Data (Cleaned)"),
+              box(width = 12,DTOutput("polarity_text"),title = "Sentiment Data"),
+              box(width = 12,DTOutput("sentiment_text"),title = "Emotion Data")
+      ),
+      tabItem(tabName = "sentiment_summarized",
+              h2("Sentiments Summarized"),
+              box(width = 12,plotOutput("polarity")),
+              box(width = 12,plotOutput("emotionscount"))
+              ),
+      tabItem(tabName = "sentiment_detailed",
+              h2("Sentiments Summarized"),
+              box(width = 12,plotlyOutput("polaritydetail")),
+              box(width = 12,plotlyOutput("polaritytime"))
+      )
+    )
+  )
+)
+
+#server/logic content
+server <- function(input, output, session) {
+  #set options on loadcapacity for Twitter data for bigger imports
+  options(shiny.maxRequestSize=100*1024^2)
+  
+  #import Twitter-API Credentials
+  observeEvent(input$file, {
+    if(input$file != ""){
+      keys <<- read_xlsx(input$file$datapath, col_names = T)
+    }
+  })
+  #establish Connection to Twitter and assign raw-data
+  observeEvent(input$loadButton, {
+    if(input$hashtag != ""){
+      #create/draw keys from imported .xlsx file
+      token <- create_token(consumer_key = keys$Twitter_Keys[1],
+                   consumer_secret = keys$Twitter_Keys[2],
+                   access_token = keys$Twitter_Keys[3],
+                   access_secret = keys$Twitter_Keys[4])
+      data <- as.data.frame(search_tweets(input$hashtag, n = as.numeric(as.character(input$numberslider)), lang= "en", include_rts = FALSE, token= token))[c(1:input$numberslider),]
+      #if((input$dates[1] == input$dates[2])  && (input$number != ""))  data <- twListToDF(searchTwitter(paste0(input$hashtag, " -filter:retweets"), lang = "en", resultType = ,n = as.numeric(input$number)))
+      #else if ((input$dates[1] != input$dates[2]) && (input$number == "")) data <- twListToDF(searchTwitter(paste0(input$hashtag, " -filter:retweets"), lang = "en", resultType = , since = as.character(input$dates[1]), until = as.character(input$dates[2])))
+      #else if ((input$dates[1] != input$dates[2]) && (input$number != "")) data <- twListToDF(searchTwitter(paste0(input$hashtag, " -filter:retweets"), lang = "en", resultType = ,n = as.numeric(input$number), since = as.character(input$dates[1]), until = as.character(input$dates[2])))
+    }
+    data_demo <- data.frame("Date" = as.character(data$created_at),"Text" = as.character(data$text))
+    output$data_raw <- renderDataTable(data_demo,options= list(scrollY = TRUE,pageLength = 5))
+    #create global data object for transfer
+    data_twitter <<- data
+  })
+  #clean text-data after NLP-Pipeline standard; start polarity-analysis; start sentiment-analysis; 
+  observeEvent(input$startButton, {
+    browser()
+    
+    #start to clean data using a NLP-Pipeline approach
+    tweets_data <- data.frame("Text"=data_twitter$text)
+    
+    #Take care of non-UTF-8 Characters, replace them with ''
+    iconv(tweets_data, "UTF-8", "UTF-8",sub='')
+    tweets_data$Text <- as.character(tweets_data$Text)
+    
+    #iterate over textdata; remove twitterlike textelements ('@User123....'); transform text into UTF-8
+    for(i in 1:nrow(tweets_data)){
+      tweets_data$Text[i] <- gsub("@\\w+ *", "", tweets_data$Text[i])
+      Encoding(tweets_data$Text[i]) <- "UTF-8"
+    }
+    
+    #Normalize data (remove Punctuation, Numbers, Capitalization, "/()_-")
+    tweets_data <- data.frame("Text" = as.character(removePunctuation(removeNumbers(tolower(tweets_data$Text)))))
+    
+    tweets_data$Text <- as.character(tweets_data$Text)
+    for(i in 1:nrow(tweets_data)){
+      #remove https/http addresses from tweets
+      tweets_data$Text[i] <- gsub("http\\w+ *", "", tweets_data$Text[i])
+      tweets_data$Text[i] <- gsub("https\\w+ *", "", tweets_data$Text[i])
+      #remove non-ASCII characters
+      tweets_data$Text[i] <- gsub("[^\x01-\x7F]", "", tweets_data$Text[i])
+      #remove stopwords
+      tweets_data$Text[i] <- tryCatch({rm_stopwords(tweets_data$Text[i], stopwords = qdapDictionaries::Top200Words,
+                                                    unlist = FALSE , separate = FALSE)},
+                                      error=function(cond){
+                                      Text <- "this tweet conflicts with utf8 and will be deleted"
+                                      return(Text)})
+    }
+
+    #visualize cleaned data in app
+    output$data_clean <- renderDataTable(tweets_data, options= list(scrollY = TRUE, pageLength = 5))
+    
+    #Perform SentimentAnalysis while performing stemming and stopwords removal in-function-wise
+    polarity_text <- analyzeSentiment(tweets_data$Text, language = "english", removeStopwords = TRUE, stemming = TRUE)
+    
+    #adjust polarity score towards wordcount
+    if (polarity_text$WordCount < 10){}
+    else if(polarity_text$WordCount > 11 && polarity_text$WordCount < 15) {polarity_text$SentimentGI <- polarity_text$SentimentGI * 1.5}
+    else if(polarity_text$WordCount > 16 && polarity_text$WordCount < 20) {polarity_text$SentimentGI <- polarity_text$SentimentGI * 2}
+    else if(polarity_text$WordCount > 21 && polarity_text$WordCount < 25) {polarity_text$SentimentGI <- polarity_text$SentimentGI * 2.5}
+    else if(polarity_text$WordCount > 26 && polarity_text$WordCount < 30) {polarity_text$SentimentGI <- polarity_text$SentimentGI * 3.5}
+    else if(polarity_text$WordCount > 31 && polarity_text$WordCount < 50) {polarity_text$SentimentGI <- polarity_text$SentimentGI * 4}
+    else if(polarity_text$WordCount > 51 && polarity_text$WordCount < 100) {polarity_text$SentimentGI <- polarity_text$SentimentGI * 5}
+    else if(polarity_text$WordCount > 101 && polarity_text$WordCount < 150) {polarity_text$SentimentGI <- polarity_text$SentimentGI * 6.5} 
+    else if(polarity_text$WordCount > 151 && polarity_text$WordCount < 200) {polarity_text$SentimentGI <- polarity_text$SentimentGI * 8}
+    else if(polarity_text$WordCount > 201 && polarity_text$WordCount < 250) {polarity_text$SentimentGI <- polarity_text$SentimentGI * 12}
+    else if(polarity_text$WordCount > 251 && polarity_text$WordCount < 300) {polarity_text$SentimentGI <- polarity_text$SentimentGI * 15}
+    else if(polarity_text$WordCount > 301 && polarity_text$WordCount < 350) {polarity_text$SentimentGI <- polarity_text$SentimentGI * 20}
+    else if(polarity_text$WordCount > 351 && polarity_text$WordCount < 400) {polarity_text$SentimentGI <- polarity_text$SentimentGI * 25}
+    if(polarity_text$SentimentGI > 1) polarity_text$SentimentGI <- 1
+    if(polarity_text$SentimentGI < -1) polarity_text$SentimentGI <- -1
+    
+    #filter /select for required information
+    polarity_text <- polarity_text[,c(1:4)]
+    names(polarity_text) <- c(" WordCount", "Polarity_Overall", "Polarity_Negative", "Polarity_Positive")
+    sentiment_text <- extract_emotion_terms(tweets_data$Text, un.as.negation = T)
+    sentiment_text <- sentiment_text[,-c('element_id', 'sentence_id')]
+    
+    output$polarity_text <- renderDataTable(polarity_text,options= list(scrollY = TRUE, pageLength = 5))
+    output$sentiment_text <- renderDataTable(sentiment_text,options= list(scrollY = TRUE, pageLength = 5))
+    
+    #summarize the data for plotting of overall polarity
+    output$polarity <- renderPlot({
+      polarity <- mean(polarity_text[,"Polarity_Overall"], na.rm=T)
+      ggplot(data=polarity_text, aes(polarity_text[,"Polarity_Overall"])) + 
+        geom_histogram() +
+        geom_vline(xintercept = polarity, color = "red") +
+        labs(title = "Overview over Polarity distribution of Tweets", x = "Polarity Score")
+    })
+    
+    #plot polarity of texts for deeper insights
+    output$polaritydetail <- renderPlotly({
+      #create dataset for visualization
+      pol_detail  <- polarity_text
+      pol_detail$Tweet <- data_twitter$text
+      pol_detail <- arrange(pol_detail, desc(Polarity_Overall))
+      pol_detail$X <- c(1:nrow(pol_detail))
+      #visualize data
+      ggplotly(ggplot(pol_detail, aes(x = X, y = Polarity_Overall, color = Polarity_Overall, text= Tweet)) +
+        geom_point() +
+        labs(title = "Scatterplot of polarity of Tweets", x = "Tweet Number"))
+    })
+    
+    #plot polarity over time posts for deeper insights
+    output$polaritytime <- renderPlotly({
+      diff_mins <- as.numeric(difftime(as.POSIXlt(Sys.time(),tz="UTC"),data_twitter$created_at, unit="mins"))
+      data_twitter$roundend_diffs <- cut(diff_mins, breaks = seq(0, 180, by = 1))
+      data_twitter$polarity_abs <- ifelse(polarity_text$Polarity_Overall > 0,1,0)
+      data_pos <- data_twitter[data_twitter$polarity_abs == 1,]
+      data_nev <- data_twitter[data_twitter$polarity_abs == 0,]
+      data_pos_sum <- data.frame(table(data_pos$roundend_diffs))
+      data_nev_sum <- data.frame(table(data_nev$roundend_diffs))
+      
+      fig <- plot_ly(data_pos_sum, x = ~Var1, y = ~Freq, type = 'bar', name = 'Positives')
+      fig <- fig %>% add_trace(y = ~data_nev_sum$Freq, name = 'Negatives')
+      fig <- fig %>% layout(title = 'Overview of Tweet polarity of the last 3 Hours',  xaxis =  list(title = 'Time'), yaxis = list(title = 'Frequency'), barmode = 'stack')
+      fig
+      
+      # ggplotly(ggplot(pol_detail, aes(x = X, y = Polarity_Overall, color = Polarity_Overall, text= Tweet)) +
+      #            geom_point() +
+      #            labs(title = "Scatterplot of polarity of Tweets"), x = "Time", y = "Frequency")
+      
+    })
+    
+    #plot sentiments after occurence of texts for deeper insights
+    output$emotionscount <- renderPlot({
+      emotions <- na_if(sentiment_text[,c(1:8)], "character(0)")
+      emotions_consolidated <- as.data.frame(t(data.frame("anger"=sum(!is.na(emotions$anger)),
+                                                          "anticipation"=sum(!is.na(emotions$anticipation)),
+                                                          "disgust"=sum(!is.na(emotions$disgust)),
+                                                          "fear"=sum(!is.na(emotions$fear)),
+                                                          "joy"=sum(!is.na(emotions$joy)),
+                                                          "sadness"=sum(!is.na(emotions$sadness)),
+                                                          "surprise"=sum(!is.na(emotions$surprise)),
+                                                          "trust"=sum(!is.na(emotions$trust)))))
+      
+      ggplot(emotions_consolidated, aes(x=reorder(row.names(emotions_consolidated), as.numeric(V1)), y=as.numeric(V1))) +
+        geom_bar(stat="identity") +
+        coord_flip() +
+        labs(title = "Overview over Emotions", x= "Emotion",  y= "Frequency")
+    })
+    
+    #plot sentiment of texts for deeper insights
+    output$emotionsdetail <- renderPlotly({
+      e <<- sentiment_text
+      # ggplot(data=polarity_text, aes(polarity_text$SentimentGI)) + 
+      #   geom_histogram() +
+      #   geom_vline(xintercept = polarity, color = "red") +
+      #   labs(title = "Overview over Polarity distribution of Tweets", x = "Polarity Score")
+      # 
+      
+      
+    })
+    
+    #plot post frequency of tweets for deeper insights
+    output$timeplot <- renderPlot({
+      diff_mins <- as.numeric(difftime(as.POSIXlt(Sys.time(),tz="UTC"),data_twitter$created, "mins"))
+      diff_mins_df <- as.data.frame(table(droplevels(as.data.frame(cut(diff_mins, breaks = seq(0, 180, by = 5))))))
+      ggplot(diff_mins_df, aes(x = Var1, y= as.numeric(Freq), group=1)) +
+        geom_point() +
+        geom_line() +
+        labs(title = "Overview Tweet frequency in the last 3 Hours",x = "Minutes from Now", y="Frequency")
+    })
+    
+  })
+}
+
+shinyApp(ui, server)
+
+
+
