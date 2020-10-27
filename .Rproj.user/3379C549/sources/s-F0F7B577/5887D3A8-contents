@@ -165,9 +165,9 @@ trace_9 <- data.frame(date=index(h_xts), coredata(h_xts))
 
 x <- seq.Date(from=min(index(train)), to=max(index(test)) + 360, by="days")
 
-data <- data.frame("date"=x)
-data <- merge(data, trace_0, by="date", all.x = TRUE)
-data <- merge(data, trace_1, by="date", all.x = TRUE)
+data_fc_merged <- data.frame("date"=x)
+data_fc_merged <- merge(data, trace_0, by="date", all.x = TRUE)
+data_fc_merged <- merge(data, trace_1, by="date", all.x = TRUE)
 data <- merge(data, trace_2, by="date", all.x = TRUE)
 data <- merge(data, trace_3, by="date", all.x = TRUE)
 data <- merge(data, trace_4, by="date", all.x = TRUE)

@@ -24,7 +24,7 @@ library(imputeTS)
 library(tsibble)
 library(TTR)
 
-source("modules/module1.R")
+source("modules/import_data.R")
 source("modules/module2.R")
 source("modules/module3.R")
 
@@ -56,7 +56,7 @@ ui <- dashboardPage(
                     ),
                       
                     box(width = 12,
-                        box(width = 8, plotlyOutput("placeholder1"),title = "Kursuebersicht grafisch"),
+                        box(width = 8, plotlyOutput("plot1"),title = "Kursuebersicht grafisch"),
                         box(width = 4,DTOutput("stockTable"),title = "Kursuebersicht tabellarisch")
                     ),
             ),
@@ -73,7 +73,7 @@ ui <- dashboardPage(
             ),
             tabItem(tabName = "trades",
                     h2("Trades"),
-                    box(width = 12,DTOutput("placeholder4"),title = "Fehlerausgabe")
+                    box(width = 12,DTOutput("placeholder8"),title = "Fehlerausgabe")
             ),
             tabItem(tabName = "kursindikator",
                     h2("Kursindikatoren"),
@@ -92,19 +92,26 @@ ui <- dashboardPage(
 
 #server/logic content
 server <- function(input, output, session) {
-  print("klappt")
-  observe(input$loader, {
-    print("klappt")
+
+  observeEvent(input$loader, {
+    
+    import_stockdata(input$dates)
     browser()
-    symbols <- stockSymbols("NASDAQ")[,c(1:2)]
-    symbols <- na.omit(symbols)
-    symbols <- symbols[1:10,]
-
-    for (i in 1:length(symbols$Symbol)){
-      try(getSymbols(symbols$Symbol[i], from = "2017-01-01", to="2019-01-01" ,auto.assign = T))
-    }
-
     output$stockTable <- renderDataTable(data,options= list(scrollY = TRUE,pageLength = 5))
+    browser()
+    output$plot1 <- renderPlotly({
+      
+      
+      plot_ly(data_plot, x = ~Date, y = ~AACG.Adjusted, type = 'scatter', mode = 'lines', 
+              line = list(color = "rgb(0, 0, 0)")) %>%
+        layout(title = "Date",
+               xaxis = list(title = "Date",
+                            zeroline = FALSE),
+               yaxis = list(title = "Price",
+                            zeroline = FALSE))
+    })
+
+    
   })
 
 }

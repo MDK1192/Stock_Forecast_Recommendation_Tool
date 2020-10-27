@@ -1,0 +1,9 @@
+{
+    "path" : "~/GitHub/Stock_Forecast_Recommendation_Tool",
+    "sortOrder" : [
+        {
+            "ascending" : true,
+            "columnIndex" : 2
+        }
+    ]
+}
