@@ -86,7 +86,12 @@ ui <- dashboardPage(
                       id = "tabset1",
                       tabPanel("Tab1", "Tab content 1"),
                       tabPanel("Tab2", "Tab content 2")
-                    )
+                    ),
+                    box(width = 12,DTOutput("stockOverviewInd"),title = "Aktienuebersicht"),
+                    box(width = 12, plotlyOutput("plotIndCore")),
+                    box(width = 12, plotlyOutput("plotIndMACD")),
+                    box(width = 12, plotlyOutput("plotIndRSI"))
+                        
             )
 
         )
@@ -112,6 +117,7 @@ server <- function(input, output, session) {
     stocks_picked <<- symbols[symbols$Symbol %in% objects(),]
     output$stockOverview <- renderDataTable(stocks_picked,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
     output$stockOverviewFC <- renderDataTable(stocks_picked,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
+    output$stockOverviewInd <- renderDataTable(stocks_picked,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
     output$stockData <- renderDataTable(data_stock,options= list(scrollY = TRUE,pageLength = 5))
     output$plotStock <- renderPlotly({
       data_plot <- data.frame("Date"= index(data_stock), "Adjusted" = select(as.data.frame(data_stock),contains("Adjusted")))
@@ -162,15 +168,17 @@ server <- function(input, output, session) {
         fc_snaive <- snaive(data_fc[,7],h=input$horizonslider)$mean
         fc_rwf <- rwf(data_fc[,7],h=input$horizonslider)$mean
         # #fc_croston <- croston(data_fc[,7],h=input$horizonslider)$mean
+        # only for seas.
         # #fc_stlf <- stlf(data_fc[,7],h=input$horizonslider)$mean
         fc_ses <- ses(data_fc[,7],h=input$horizonslider)$mean
         fc_holt <- holt(data_fc[,7],h=input$horizonslider)$mean
         # #fc_hw <- hw(data_fc[,7],h=input$horizonslider)$mean
-        #fc_splinef <- splinef(data_fc[,7],h=input$horizonslider)$mean
+        fc_splinef <- splinef(data_fc[,7],h=input$horizonslider)$mean
         fc_thetaf <- thetaf(data_fc[,7],h=input$horizonslider)$mean
-        # fc_ets <- ets(data_fc[,7]) %>% forecast(h = input$horizonslider)
-        # fc_tbats <- tbats(data_fc[,7]) %>% forecast(h = input$horizonslider)
-        # fc_arima <- auto.arima(data_fc[,7]) %>% forecast(h = input$horizonslider)
+        fc_ets <- ets(data_fc[,7]) %>% forecast(h = input$horizonslider)
+        fc_tbats <- tbats(as.numeric(data_fc[,7])) %>% forecast(h = input$horizonslider)
+        fc_arima <- auto.arima(data_fc[,7]) %>% forecast(h = input$horizonslider)
+        fc_nnetar <- nnetar(data_fc[,7], lambda=0) %>% forecast(h = input$horizonslider)
         
         dates <- seq.Date(from=max(index(data_fc)) + 1, to=max(index(data_fc)) + input$horizonslider, by="days")
         
@@ -183,11 +191,12 @@ server <- function(input, output, session) {
         fc_ses_xts <- xts(x=fc_ses, order.by=dates)
         fc_holt_xts <- xts(x=fc_holt, order.by=dates)
         # #fc_hw_xts <- xts(x=fc_hw, order.by=dates)
-        #fc_splinef_xts <- xts(x=fc_splinef, order.by=dates)
+        fc_splinef_xts <- xts(x=fc_splinef, order.by=dates)
         fc_thetaf_xts <- xts(x=fc_thetaf, order.by=dates)
-        # fc_ets_xts <- xts(x=fc_ets$mean, order.by=dates)
-        # fc_tbats_xts <- xts(x=fc_tbats$mean, order.by=dates)
-        # fc_arima_xts <- xts(x=fc_arima$mean, order.by=dates)
+        fc_ets_xts <- xts(x=fc_ets$mean, order.by=dates)
+        fc_tbats_xts <- xts(x=fc_tbats$mean, order.by=dates)
+        fc_arima_xts <- xts(x=fc_arima$mean, order.by=dates)
+        fc_nnetar_xts <- xts(x=fc_nnetar$mean, order.by=dates)
         
         trace_0 <- data.frame(date=index(data_fc), coredata(data_fc[,7]))
         trace_1 <- data.frame(date=index(fc_meanf_xts), coredata(fc_meanf_xts))
@@ -199,12 +208,13 @@ server <- function(input, output, session) {
         trace_7 <- data.frame(date=index(fc_ses_xts), coredata(fc_ses_xts))
         trace_8 <- data.frame(date=index(fc_holt_xts), coredata(fc_holt_xts))
         # #trace_9 <- data.frame(date=index(fc_hw_xts), coredata(fc_hw_xts))
-        #trace_10 <- data.frame(date=index(fc_splinef_xts), coredata(fc_splinef_xts))
+        trace_10 <- data.frame(date=index(fc_splinef_xts), coredata(fc_splinef_xts))
         trace_11 <- data.frame(date=index(fc_thetaf_xts), coredata(fc_thetaf_xts))
-        # trace_12 <- data.frame(date=index(fc_ets_xts), coredata(fc_ets_xts))
-        # trace_13 <- data.frame(date=index(fc_tbats_xts), coredata(fc_tbats_xts))
-        # trace_14 <- data.frame(date=index(fc_arima_xts), coredata(fc_arima_xts))
-
+        trace_12 <- data.frame(date=index(fc_ets_xts), coredata(fc_ets_xts))
+        trace_13 <- data.frame(date=index(fc_tbats_xts), coredata(fc_tbats_xts))
+        trace_14 <- data.frame(date=index(fc_arima_xts), coredata(fc_arima_xts))
+        trace_15 <- data.frame(date=index(fc_nnetar_xts), coredata(fc_nnetar_xts))
+        
         x <- seq.Date(from=min(index(data_fc)), to=max(index(fc_meanf_xts)), by="days")
         
         data_fc_merged <- data.frame("date"=x)
@@ -218,19 +228,20 @@ server <- function(input, output, session) {
         data_fc_merged <- merge(data_fc_merged, trace_7, by="date", all.x = TRUE)
         data_fc_merged <- merge(data_fc_merged, trace_8, by="date", all.x = TRUE)
         # #data_fc_merged <- merge(data_fc_merged, trace_9, by="date", all.x = TRUE)
-        # data_fc_merged <- merge(data_fc_merged, trace_10, by="date", all.x = TRUE)
+        data_fc_merged <- merge(data_fc_merged, trace_10, by="date", all.x = TRUE)
         data_fc_merged <- merge(data_fc_merged, trace_11, by="date", all.x = TRUE)
-        # data_fc_merged <- merge(data_fc_merged, trace_12, by="date", all.x = TRUE)
-        # data_fc_merged <- merge(data_fc_merged, trace_13, by="date", all.x = TRUE)
-        # data_fc_merged <- merge(data_fc_merged, trace_14, by="date", all.x = TRUE)
-
+        data_fc_merged <- merge(data_fc_merged, trace_12, by="date", all.x = TRUE)
+        data_fc_merged <- merge(data_fc_merged, trace_13, by="date", all.x = TRUE)
+        data_fc_merged <- merge(data_fc_merged, trace_14, by="date", all.x = TRUE)
+        data_fc_merged <- merge(data_fc_merged, trace_15, by="date", all.x = TRUE)
+        
         #"stlf",
         #"croston","hw","ses", "holt", 
         #"splinef","thetaf","ets", "tbats", "autoarima"
-        names(data_fc_merged) <- c("date", "stock", "meanf", "naive", "snaive", 
-        "rwf","ses", "holt","thetaf")
+        names(data_fc_merged) <- c("date", "Price", "meanf", "naive", "snaive", 
+        "rwf","ses", "holt","splinef","thetaf", "ets", "tbats", "autoarima", "nnetar")
         
-        fig <- plot_ly(data_fc_merged, x=~date, y = ~stock, name = 'value', type = 'scatter', mode = 'lines')
+        fig <- plot_ly(data_fc_merged, x=~date, y = ~Price, name = 'Price', type = 'scatter', mode = 'lines')
         fig <- fig %>% add_trace(y = ~meanf, name = 'meanf', mode = 'lines')
         fig <- fig %>% add_trace(y = ~naive, name = 'naive', mode = 'lines')
         fig <- fig %>% add_trace(y = ~snaive, name = 'snaive', mode = 'lines')
@@ -240,11 +251,12 @@ server <- function(input, output, session) {
         fig <- fig %>% add_trace(y = ~ses, name = 'ses', mode = 'lines')
         fig <- fig %>% add_trace(y = ~holt, name = 'holt', mode = 'lines')
         # fig <- fig %>% add_trace(y = ~hw, name = 'hw', mode = 'lines')
-        # fig <- fig %>% add_trace(y = ~splinef, name = 'splinef', mode = 'lines')
+        fig <- fig %>% add_trace(y = ~splinef, name = 'splinef', mode = 'lines')
         fig <- fig %>% add_trace(y = ~thetaf, name = 'thetaf', mode = 'lines')
-        # fig <- fig %>% add_trace(y = ~ets, name = 'ets', mode = 'lines')
-        # fig <- fig %>% add_trace(y = ~tbats, name = 'tbats', mode = 'lines')
-        # fig <- fig %>% add_trace(y = ~autoarima, name = 'autoarima', mode = 'lines')
+        fig <- fig %>% add_trace(y = ~ets, name = 'ets', mode = 'lines')
+        fig <- fig %>% add_trace(y = ~tbats, name = 'tbats', mode = 'lines')
+        fig <- fig %>% add_trace(y = ~autoarima, name = 'autoarima', mode = 'lines')
+        fig <- fig %>% add_trace(y = ~autoarima, name = 'nnetar', mode = 'lines')
         fig
       })
     } 
@@ -262,7 +274,25 @@ server <- function(input, output, session) {
     
 
   })
-
+  observeEvent(input$stockOverviewInd_rows_selected, {
+    if (stocks_picked$Symbol[input$stockOverviewInd_rows_selected] %in% ls(envir = .GlobalEnv)) {
+      data_stock <<- get(stocks_picked$Symbol[input$stockOverviewInd_rows_selected], envir = .GlobalEnv)
+      output$stockData <- renderDataTable(data_stock,options= list(scrollY = TRUE,pageLength = 5))
+      data_plot <- data.frame("Date"= index(data_stock), "Adjusted" = select(as.data.frame(data_stock),contains("Adjusted")))
+      names(data_plot) <- c("Date", "Adjusted")
+      data_plot$RSI <- RSI(data_plot$Adjusted)
+      data_plot$MACD <- MACD(data_plot$Adjusted)
+      names(data_plot) <- c("Date", "Adjusted", "RSI", "MACD")
+      output$plotIndCore <- renderPlotly({plot_ly(data_plot, x = ~Date, y = ~Adjusted, type = 'scatter', mode = 'lines', 
+                line = list(color = "rgb(0, 0, 0)")) %>% layout(title = "Date", xaxis = list(title = "Date", zeroline = FALSE), yaxis = list(title = "Price", zeroline = FALSE))})
+      output$plotIndMACD <- renderPlotly({plot_ly(data_plot, x = ~Date, y = ~MACD, type = 'scatter', mode = 'lines', 
+                                                    line = list(color = "rgb(0, 0, 0)")) %>% layout(title = "Date", xaxis = list(title = "Date", zeroline = FALSE), yaxis = list(title = "Price", zeroline = FALSE))})
+      output$plotIndRSI <- renderPlotly({plot_ly(data_plot, x = ~Date, y = ~RSI, type = 'scatter', mode = 'lines', 
+                                                  line = list(color = "rgb(0, 0, 0)")) %>% layout(title = "Date", xaxis = list(title = "Date", zeroline = FALSE), yaxis = list(title = "Price", zeroline = FALSE))})
+        
+        
+    } 
+  })
 }
 
 shinyApp(ui, server)
