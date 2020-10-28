@@ -4,16 +4,16 @@
     "created" : 1603818958775.000,
     "dirty" : false,
     "encoding" : "UTF-8",
-    "folds" : "98|34|132|2|\n125|29|130|4|\n",
-    "hash" : "3524143727",
+    "folds" : "126|29|131|4|\n",
+    "hash" : "2291350896",
     "id" : "7225BDCE",
-    "lastKnownWriteTime" : 1603830975,
-    "last_content_update" : 1603830975715,
+    "lastKnownWriteTime" : 1603907949,
+    "last_content_update" : 1603907949548,
     "path" : "~/GitHub/Stock_Forecast_Recommendation_Tool/app.R",
     "project_path" : "app.R",
     "properties" : {
-        "cursorPosition" : "209,33",
-        "scrollLine" : "190"
+        "cursorPosition" : "230,36",
+        "scrollLine" : "220"
     },
     "read_only" : false,
     "read_only_alternatives" : [

@@ -12,16 +12,16 @@
     "path" : null,
     "project_path" : null,
     "properties" : {
-        "cacheKey" : "2EB615CF",
+        "cacheKey" : "B54BC72A",
         "caption" : "data_fc_merged",
-        "contentUrl" : "grid_resource/gridviewer.html?env=_rs_no_env&obj=data_fc_merged&cache_key=2EB615CF",
-        "displayedObservations" : "1079",
+        "contentUrl" : "grid_resource/gridviewer.html?env=_rs_no_env&obj=data_fc_merged&cache_key=B54BC72A",
+        "displayedObservations" : "1080",
         "environment" : "_rs_no_env",
         "expression" : "data_fc_merged",
         "object" : "data_fc_merged",
         "preview" : "0",
-        "totalObservations" : "1079",
-        "variables" : "5"
+        "totalObservations" : "1080",
+        "variables" : "6"
     },
     "read_only" : false,
     "read_only_alternatives" : [
