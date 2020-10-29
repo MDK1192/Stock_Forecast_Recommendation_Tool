@@ -14,6 +14,7 @@ library(plotly)
 library(xts)
 library(zoo)
 library(quantmod)
+library(dplyr)
 # library(Quandl)
 library(forecast)
 # #library(RCrawler)
@@ -37,7 +38,7 @@ ui <- dashboardPage(
         sidebarMenu(
             menuItem("Aktien", tabName = "aktien", icon = icon("th")),
             menuItem("Forecast", tabName = "forecast", icon = icon("th")),
-            menuItem("Recommendation", tabName = "recommendation", icon = icon("th")),
+            menuItem("Blogs", tabName = "blogs", icon = icon("th")),
             menuItem("Trades", tabName = "trades", icon = icon("th")),
             menuItem("Kursindikator", tabName = "kursindikator", icon = icon("th"))
         )
@@ -63,12 +64,15 @@ ui <- dashboardPage(
             tabItem(tabName = "forecast",
                     h2("Forecast"),
                     box(width = 12,
-                        box(width = 8,sliderInput("horizonslider", label = h3("Horizon"), min = 10, max = 365, value = 50)),
+                        box(width = 8,
+                            sliderInput("horizonslider", label = h3("Forecast Horizon"), min = 10, max = 365, value = 50),
+                            sliderInput("trainslider", label = h3("Forecast Trainsize"), min = 0, max = 365, value = 0),
+                        ),
                         box(width = 4,DTOutput("stockOverviewFC"),title = "Aktienuebersicht")),
                     box(width = 12, plotlyOutput("plotforecast"),title = "Forecasts grafisch"),
-                    box(width = 12,DTOutput("placeholder4"),title = "Fehlerausgabe")
+                    box(width = 12,DTOutput("accuracyOverview"),title = "Fehlerausgabe")
             ),
-            tabItem(tabName = "recommendation",
+            tabItem(tabName = "blogs",
                     h2("Recommendation"),
                     box(width = 12,DTOutput("placeholder5"),title = "Boersenblog1 tabellarisch"),
                     box(width = 12,DTOutput("placeholder6"),title = "Boersenblog2 tabellarisch"),
@@ -88,10 +92,11 @@ ui <- dashboardPage(
                       tabPanel("Tab2", "Tab content 2")
                     ),
                     box(width = 12,DTOutput("stockOverviewInd"),title = "Aktienuebersicht"),
-                    box(width = 12, plotlyOutput("plotIndCore")),
-                    box(width = 12, plotlyOutput("plotIndMACD")),
-                    box(width = 12, plotlyOutput("plotIndRSI"))
-                        
+                    box(width = 12, plotlyOutput("plotIndCore", height = 250)),
+                    box(width = 12, 
+                        plotlyOutput("plotIndMACD", height = 200),
+                        plotlyOutput("plotIndRSI", height = 200)),
+
             )
 
         )
@@ -159,29 +164,69 @@ server <- function(input, output, session) {
       data_stock <<- get(stocks_picked$Symbol[input$stockOverviewFC_rows_selected], envir = .GlobalEnv)
       output$plotforecast <- renderPlotly({
         data_fc  <- xts(x=data_stock)
+        
+        dates <- seq.Date(from=min(index(data_fc)), to=max(index(data_fc)) - input$trainslider, by="days")
+        xts <- xts(x=rep(NA, length(dates)), order.by=dates)
+        data_fc_train <- na.locf(merge(xts, data_fc, join = "left"))
+        
         dates <- seq.Date(from=min(index(data_fc)), to=max(index(data_fc)), by="days")
         xts <- xts(x=rep(NA, length(dates)), order.by=dates)
         data_fc <- na.locf(merge(xts, data_fc, join = "left"))
         
-        fc_meanf <- meanf(data_fc[,7],h=input$horizonslider)$mean
-        fc_naive <- naive(data_fc[,7],h=input$horizonslider)$mean
-        fc_snaive <- snaive(data_fc[,7],h=input$horizonslider)$mean
-        fc_rwf <- rwf(data_fc[,7],h=input$horizonslider)$mean
-        # #fc_croston <- croston(data_fc[,7],h=input$horizonslider)$mean
+        
+        fc_meanf <- meanf(data_fc_train[,7],h=input$horizonslider)$mean
+        fc_naive <- naive(data_fc_train[,7],h=input$horizonslider)$mean
+        fc_snaive <- snaive(data_fc_train[,7],h=input$horizonslider)$mean
+        fc_rwf <- rwf(data_fc_train[,7],h=input$horizonslider)$mean
+        # #fc_croston <- croston(data_fc_train[,7],h=input$horizonslider)$mean
         # only for seas.
-        # #fc_stlf <- stlf(data_fc[,7],h=input$horizonslider)$mean
-        fc_ses <- ses(data_fc[,7],h=input$horizonslider)$mean
-        fc_holt <- holt(data_fc[,7],h=input$horizonslider)$mean
-        # #fc_hw <- hw(data_fc[,7],h=input$horizonslider)$mean
-        fc_splinef <- splinef(data_fc[,7],h=input$horizonslider)$mean
-        fc_thetaf <- thetaf(data_fc[,7],h=input$horizonslider)$mean
-        fc_ets <- ets(data_fc[,7]) %>% forecast(h = input$horizonslider)
-        fc_tbats <- tbats(as.numeric(data_fc[,7])) %>% forecast(h = input$horizonslider)
-        fc_arima <- auto.arima(data_fc[,7]) %>% forecast(h = input$horizonslider)
-        fc_nnetar <- nnetar(data_fc[,7], lambda=0) %>% forecast(h = input$horizonslider)
+        # #fc_stlf <- stlf(data_fc_train[,7],h=input$horizonslider)$mean
+        fc_ses <- ses(data_fc_train[,7],h=input$horizonslider)$mean
+        fc_holt <- holt(data_fc_train[,7],h=input$horizonslider)$mean
+        # #fc_hw <- hw(data_fc_train[,7],h=input$horizonslider)$mean
+        fc_splinef <- splinef(data_fc_train[,7],h=input$horizonslider)$mean
+        fc_thetaf <- thetaf(data_fc_train[,7],h=input$horizonslider)$mean
+        fc_ets <- ets(data_fc_train[,7]) %>% forecast(h = input$horizonslider) 
+        fc_ets <- fc_ets$mean
+        fc_tbats <- tbats(as.numeric(data_fc_train[,7])) %>% forecast(h = input$horizonslider)
+        fc_tbats <- fc_tbats$mean
+        fc_arima <- auto.arima(data_fc_train[,7]) %>% forecast(h = input$horizonslider)
+        fc_arima <- fc_arima$mean
+        fc_nnetar <- nnetar(data_fc_train[,7], lambda=0) %>% forecast(h = input$horizonslider)
+        fc_nnetar <- fc_nnetar$mean
         
-        dates <- seq.Date(from=max(index(data_fc)) + 1, to=max(index(data_fc)) + input$horizonslider, by="days")
-        
+        if(input$trainslider != 0){
+          train_ts <- anti_join(as.data.frame(data_fc), as.data.frame(data_fc_train))
+          acc_fc_meanf <- accuracy(fc_meanf[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_naive <- accuracy(fc_naive[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_snaive <- accuracy(fc_snaive[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_rwf <- accuracy(fc_rwf[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_ses <- accuracy(fc_ses[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_holt <- accuracy(fc_holt[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_splinef <- accuracy(fc_splinef[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_thetaf <- accuracy(fc_thetaf[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_ets <- accuracy(fc_ets[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_tbats <- accuracy(fc_tbats[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_arima <- accuracy(fc_arima[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_nnetar <- accuracy(fc_nnetar[1:length(train_ts[,7])], train_ts[,7])
+          acc_df <- as.data.frame(rbind(acc_fc_meanf, acc_fc_naive, acc_fc_snaive, acc_fc_rwf, acc_fc_ses, 
+                          acc_fc_holt, acc_fc_splinef, acc_fc_thetaf, acc_fc_ets, acc_fc_tbats,
+                          acc_fc_arima, acc_fc_nnetar))
+          row.names(acc_df) <- c("meanf", "naive", "snaive", "rwf","ses", "holt","splinef","thetaf", "ets", "tbats", "arima", "nnetar")
+          output$accuracyOverview <- renderDataTable(acc_df, options= list(scrollY = TRUE,pageLength = 5))
+         #Build FC_Ensemble
+          top_scores_RMSE <- data.frame(acc_df[order(acc_df$RMSE),])
+          models <- row.names(top_scores_RMSE[1:3,])
+          multiplier <- c(0.5, 0.3, 0.2)
+          ensemble_fc <- rep(0,1,length(fc_meanf))
+          for(i in 1: length(multiplier)){
+            model_fc <- as.numeric(get(paste0("fc_",models[i])))
+            model_fc_weighted <- model_fc * multiplier[i]
+            ensemble_fc <- ensemble_fc + model_fc_weighted
+          }
+        }
+
+        dates <- seq.Date(from=max(index(data_fc_train)) + 1, to=max(index(data_fc_train)) + input$horizonslider, by="days")
         fc_meanf_xts <- xts(x=fc_meanf, order.by=dates)
         fc_naive_xts <- xts(x=fc_naive, order.by=dates)
         fc_snaive_xts <- xts(x=fc_snaive, order.by=dates)
@@ -193,12 +238,17 @@ server <- function(input, output, session) {
         # #fc_hw_xts <- xts(x=fc_hw, order.by=dates)
         fc_splinef_xts <- xts(x=fc_splinef, order.by=dates)
         fc_thetaf_xts <- xts(x=fc_thetaf, order.by=dates)
-        fc_ets_xts <- xts(x=fc_ets$mean, order.by=dates)
-        fc_tbats_xts <- xts(x=fc_tbats$mean, order.by=dates)
-        fc_arima_xts <- xts(x=fc_arima$mean, order.by=dates)
-        fc_nnetar_xts <- xts(x=fc_nnetar$mean, order.by=dates)
+        fc_ets_xts <- xts(x=fc_ets, order.by=dates)
+        fc_tbats_xts <- xts(x=fc_tbats, order.by=dates)
+        fc_arima_xts <- xts(x=fc_arima, order.by=dates)
+        fc_nnetar_xts <- xts(x=fc_nnetar, order.by=dates)
         
-        trace_0 <- data.frame(date=index(data_fc), coredata(data_fc[,7]))
+        trace_0 <- data.frame(date=index(data_fc_train), coredata(data_fc_train[,7]))
+        if(input$trainslider != 0){
+          trace_train <- data.frame(date=index(data_fc), coredata(data_fc[,7]))
+          trace_train <- anti_join(trace_train, trace_0)
+          trace_ensemble <- data.frame(date=index(fc_meanf_xts), ensemble_fc)
+          }
         trace_1 <- data.frame(date=index(fc_meanf_xts), coredata(fc_meanf_xts))
         trace_2 <- data.frame(date=index(fc_naive_xts), coredata(fc_naive_xts))
         trace_3 <- data.frame(date=index(fc_snaive_xts), coredata(fc_snaive_xts))
@@ -216,9 +266,12 @@ server <- function(input, output, session) {
         trace_15 <- data.frame(date=index(fc_nnetar_xts), coredata(fc_nnetar_xts))
         
         x <- seq.Date(from=min(index(data_fc)), to=max(index(fc_meanf_xts)), by="days")
-        
         data_fc_merged <- data.frame("date"=x)
         data_fc_merged <- merge(data_fc_merged, trace_0, by="date", all.x = TRUE)
+        if(input$trainslider != 0){
+          data_fc_merged <- merge(data_fc_merged, trace_train, by="date", all.x = TRUE)
+          data_fc_merged <- merge(data_fc_merged, trace_ensemble, by="date", all.x = TRUE)
+        }
         data_fc_merged <- merge(data_fc_merged, trace_1, by="date", all.x = TRUE)
         data_fc_merged <- merge(data_fc_merged, trace_2, by="date", all.x = TRUE)
         data_fc_merged <- merge(data_fc_merged, trace_3, by="date", all.x = TRUE)
@@ -238,10 +291,19 @@ server <- function(input, output, session) {
         #"stlf",
         #"croston","hw","ses", "holt", 
         #"splinef","thetaf","ets", "tbats", "autoarima"
-        names(data_fc_merged) <- c("date", "Price", "meanf", "naive", "snaive", 
-        "rwf","ses", "holt","splinef","thetaf", "ets", "tbats", "autoarima", "nnetar")
+        if(input$trainslider != 0){
+          names(data_fc_merged) <- c("date", "Price", "Price_Validation", "Ensemble_FC", "meanf", "naive", "snaive", 
+        "rwf","ses", "holt","splinef","thetaf", "ets", "tbats", "arima", "nnetar")}
+        else{
+          names(data_fc_merged) <- c("date", "Price", "meanf", "naive", "snaive", 
+                                     "rwf","ses", "holt","splinef","thetaf", "ets", "tbats", "arima", "nnetar")
+        }
         
         fig <- plot_ly(data_fc_merged, x=~date, y = ~Price, name = 'Price', type = 'scatter', mode = 'lines')
+        if(input$trainslider != 0){
+        fig <- fig %>% add_trace(y = ~Price_Validation, name = 'Price_Validation', mode = 'lines')
+        fig <- fig %>% add_trace(y = ~Ensemble_FC, name = 'Ensemble_FC', mode = 'lines')
+        }
         fig <- fig %>% add_trace(y = ~meanf, name = 'meanf', mode = 'lines')
         fig <- fig %>% add_trace(y = ~naive, name = 'naive', mode = 'lines')
         fig <- fig %>% add_trace(y = ~snaive, name = 'snaive', mode = 'lines')
@@ -255,8 +317,8 @@ server <- function(input, output, session) {
         fig <- fig %>% add_trace(y = ~thetaf, name = 'thetaf', mode = 'lines')
         fig <- fig %>% add_trace(y = ~ets, name = 'ets', mode = 'lines')
         fig <- fig %>% add_trace(y = ~tbats, name = 'tbats', mode = 'lines')
-        fig <- fig %>% add_trace(y = ~autoarima, name = 'autoarima', mode = 'lines')
-        fig <- fig %>% add_trace(y = ~autoarima, name = 'nnetar', mode = 'lines')
+        fig <- fig %>% add_trace(y = ~arima, name = 'arima', mode = 'lines')
+        fig <- fig %>% add_trace(y = ~nnetar, name = 'nnetar', mode = 'lines')
         fig
       })
     } 
@@ -281,12 +343,23 @@ server <- function(input, output, session) {
       data_plot <- data.frame("Date"= index(data_stock), "Adjusted" = select(as.data.frame(data_stock),contains("Adjusted")))
       names(data_plot) <- c("Date", "Adjusted")
       data_plot$RSI <- RSI(data_plot$Adjusted)
-      data_plot$MACD <- MACD(data_plot$Adjusted)
-      names(data_plot) <- c("Date", "Adjusted", "RSI", "MACD")
+      data_plot$MACD1 <- MACD(data_plot$Adjusted)[,1]
+      data_plot$MACD2 <- MACD(data_plot$Adjusted)[,2]
+      browser()
+      names(data_plot) <- c("Date", "Adjusted", "RSI", "MACD1", "MACD2")
+
       output$plotIndCore <- renderPlotly({plot_ly(data_plot, x = ~Date, y = ~Adjusted, type = 'scatter', mode = 'lines', 
                 line = list(color = "rgb(0, 0, 0)")) %>% layout(title = "Date", xaxis = list(title = "Date", zeroline = FALSE), yaxis = list(title = "Price", zeroline = FALSE))})
-      output$plotIndMACD <- renderPlotly({plot_ly(data_plot, x = ~Date, y = ~MACD, type = 'scatter', mode = 'lines', 
-                                                    line = list(color = "rgb(0, 0, 0)")) %>% layout(title = "Date", xaxis = list(title = "Date", zeroline = FALSE), yaxis = list(title = "Price", zeroline = FALSE))})
+      output$plotIndMACD <- renderPlotly({
+        fig <- plot_ly(data_plot, x=~Date, y = ~MACD1, name = 'MACD', type = 'scatter', mode = 'lines')
+        fig <- fig %>% add_trace(y = ~MACD2, name = 'MACD_Signal', mode = 'lines')
+        fig
+        })
+        
+        
+        
+       # plot_ly(data_plot, x = ~Date, y = ~MACD, type = 'scatter', mode = 'lines', 
+      #                                              line = list(color = "rgb(0, 0, 0)")) %>% layout(title = "Date", xaxis = list(title = "Date", zeroline = FALSE), yaxis = list(title = "Price", zeroline = FALSE))})
       output$plotIndRSI <- renderPlotly({plot_ly(data_plot, x = ~Date, y = ~RSI, type = 'scatter', mode = 'lines', 
                                                   line = list(color = "rgb(0, 0, 0)")) %>% layout(title = "Date", xaxis = list(title = "Date", zeroline = FALSE), yaxis = list(title = "Price", zeroline = FALSE))})
         
