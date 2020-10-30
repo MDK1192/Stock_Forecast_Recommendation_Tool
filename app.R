@@ -17,9 +17,11 @@ library(quantmod)
 library(dplyr)
 # library(Quandl)
 library(forecast)
-# #library(RCrawler)
+#library(RCrawler)
 library(DT)
-# library(rvest)
+library(rvest)
+
+#faulty package disables functions -> investigate!
 # library(data.table)
 # library(imputeTS)
 # library(tsibble)
@@ -74,8 +76,12 @@ ui <- dashboardPage(
             ),
             tabItem(tabName = "blogs",
                     h2("Recommendation"),
-                    box(width = 12,DTOutput("placeholder5"),title = "Boersenblog1 tabellarisch"),
-                    box(width = 12,DTOutput("placeholder6"),title = "Boersenblog2 tabellarisch"),
+                    box(width = 12,
+                        box(width = 8,
+                            DTOutput("performanceTable"),
+                            DTOutput("analystTable"),
+                            title = "Performance & Empfehlungen"),
+                        box(width = 4,DTOutput("stockOverviewBlog"),title = "Aktienuebersicht")),
                     box(width = 12,DTOutput("placeholder7"),title = "Boersenblog3 tabellarisch")
             ),
             tabItem(tabName = "trades",
@@ -123,6 +129,7 @@ server <- function(input, output, session) {
     output$stockOverview <- renderDataTable(stocks_picked,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
     output$stockOverviewFC <- renderDataTable(stocks_picked,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
     output$stockOverviewInd <- renderDataTable(stocks_picked,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
+    output$stockOverviewBlog <- renderDataTable(stocks_picked,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
     output$stockData <- renderDataTable(data_stock,options= list(scrollY = TRUE,pageLength = 5))
     output$plotStock <- renderPlotly({
       data_plot <- data.frame("Date"= index(data_stock), "Adjusted" = select(as.data.frame(data_stock),contains("Adjusted")))
@@ -339,13 +346,11 @@ server <- function(input, output, session) {
   observeEvent(input$stockOverviewInd_rows_selected, {
     if (stocks_picked$Symbol[input$stockOverviewInd_rows_selected] %in% ls(envir = .GlobalEnv)) {
       data_stock <<- get(stocks_picked$Symbol[input$stockOverviewInd_rows_selected], envir = .GlobalEnv)
-      output$stockData <- renderDataTable(data_stock,options= list(scrollY = TRUE,pageLength = 5))
       data_plot <- data.frame("Date"= index(data_stock), "Adjusted" = select(as.data.frame(data_stock),contains("Adjusted")))
       names(data_plot) <- c("Date", "Adjusted")
       data_plot$RSI <- RSI(data_plot$Adjusted)
       data_plot$MACD1 <- MACD(data_plot$Adjusted)[,1]
       data_plot$MACD2 <- MACD(data_plot$Adjusted)[,2]
-      browser()
       names(data_plot) <- c("Date", "Adjusted", "RSI", "MACD1", "MACD2")
 
       output$plotIndCore <- renderPlotly({plot_ly(data_plot, x = ~Date, y = ~Adjusted, type = 'scatter', mode = 'lines', 
@@ -366,6 +371,52 @@ server <- function(input, output, session) {
         
     } 
   })
+  observeEvent(input$stockOverviewBlog_rows_selected,{
+    if (stocks_picked$Symbol[input$stockOverviewBlog_rows_selected] %in% ls(envir = .GlobalEnv)) {
+      data_stock <<- get(stocks_picked$Symbol[input$stockOverviewBlog_rows_selected], envir = .GlobalEnv)
+      address_performance <- paste0("https://www.marketwatch.com/investing/stock/",tolower(stocks_picked$Symbol[input$stockOverviewBlog_rows_selected]))
+      address_analyst <- paste0("https://www.marketwatch.com/investing/stock/", tolower(stocks_picked$Symbol[input$stockOverviewBlog_rows_selected]), "/analystestimates?mod=mw_quote_analyst")
+       performance <- read_html(address_performance) %>%
+        html_nodes(".right, .value") %>%
+        html_text()
+      analyst_opinions <- read_html(address_analyst) %>%
+        html_nodes(".analyst-ratings, .value") %>%
+        html_text()
+
+      analyst_opinions <- na.omit(as.numeric(analyst_opinions))
+      df_performance <- data.frame("5 Day" = performance[9], "1 Month" = performance[10], "3 Month" = performance[11], "YTD" = performance[12], "1 Year" =performance[13])
+      names(df_performance) <- c("5 Day", "1 Month", "3 Month", "YTD", "1 Year")
+      if(length(analyst_opinions) >= 5){
+        df_analyst <- data.frame(analyst_opinions[length(analyst_opinions) - 4],
+                                 analyst_opinions[length(analyst_opinions) - 3],
+                                 analyst_opinions[length(analyst_opinions) - 2],
+                                 analyst_opinions[length(analyst_opinions) - 1],
+                                 analyst_opinions[length(analyst_opinions)])
+      }
+      else(df_analyst <- data.frame("Buy"="no data", "Overweight"="no data", "Hold"="no data", "Underweight"="no data", "Sell"="no data"))
+
+      names(df_analyst) <- c("Buy", "Overweight", "Hold", "Underweight", "Sell")
+      output$performanceTable <- renderDataTable(df_performance,options= list(scrollY = TRUE,pageLength = 5))
+      output$analystTable <- renderDataTable(df_analyst,options= list(scrollY = TRUE,pageLength = 5))
+    } 
+  })
 }
+
+# performance <- read_html("https://www.marketwatch.com/investing/stock/aacg") %>%
+#   html_nodes(".right, .value") %>%
+#   html_text()
+
+
+# 
+# 
+# html_table(x, header = NA, trim = TRUE, fill = FALSE, dec = ".")
+# 
+# div:nth-child(3)
+# 
+# https://www.marketwatch.com/investing/stock/aacg/analystestimates?mod=mw_quote_analyst
+
+
+#https://www.marketwatch.com/investing/stock/aacg
+#https://www.cnbc.com/quotes/?symbol=aacg&qsearchterm=aacg
 
 shinyApp(ui, server)
