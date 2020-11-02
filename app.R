@@ -21,6 +21,7 @@ library(forecast)
 library(DT)
 library(rvest)
 
+#hallotest
 #faulty package disables functions -> investigate!
 # library(data.table)
 # library(imputeTS)
@@ -80,7 +81,7 @@ ui <- dashboardPage(
                         box(width = 8,
                             DTOutput("performanceTable"),
                             DTOutput("analystTable"),
-                            title = "Performance & Empfehlungen"),
+                            title = "Performance  Empfehlungen"),
                         box(width = 4,DTOutput("stockOverviewBlog"),title = "Aktienuebersicht")),
                     box(width = 12,DTOutput("placeholder7"),title = "Boersenblog3 tabellarisch")
             ),
