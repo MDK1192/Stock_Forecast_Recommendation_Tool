@@ -53,8 +53,11 @@ ui <- dashboardPage(
                     h2("Aktien Uebersicht"),
                     box(width = 12,
                         box(width = 3, dateRangeInput("dates", label = h3("Date range"))),
-                        box(width = 6,radioButtons("radio", label = h3("Radio buttons"),
-                                     choices = list("Branche 1" = 1, "Branche 2" = 2, "Branche 3" = 3), 
+                        box(width = 6,radioButtons("branchen", label = h3("Branchen"),
+                                     choices = list("Anlagenbau" = 1, "Autoteile" = 2, "Billig-Gemischtwarenladen" = 3,
+                                                    "Biotechnologie" = 4, "Computer-Videospiele" = 5, "Computer-Einzelhandel" = 6,
+                                                    "Computerhardware" = 7, "Computerspiele" = 8, "Datenanalyse" = 9,
+                                                    "Drogerieprodukte" = 10, "E-Commerce" = 11, "Einzelhandel" = 12), 
                                      selected = 1)),
                         box(width = 3, actionButton("loadButton", label = "Load Stockdata", width = '100%'))
                     ),
@@ -112,11 +115,32 @@ ui <- dashboardPage(
 
 #server/logic content
 server <- function(input, output, session) {
+  
+
+  
+
 
   observeEvent(input$loadButton, {
-    symbols <- stockSymbols("NASDAQ")[,c(1:2)]
-    symbols <- na.omit(symbols)
-    symbols <- symbols[1:3,]
+    #adding symbold from different areas
+    symbols <<- list(
+      Anlagenbau <- c("AMAT","KLAC","LRCX"),
+      Autoteile <- c("ORLY"),
+      Billig_Gemischtwarenladen <- c("DLTR"),
+      Biotechnologie <- c("AMGN","BIIB","BMRN","GILD","ILMN","SGEN"),
+      Computer_Videospiele <- c("ATVI","EA"),
+      Computer_Einzelhandel <- c("CDW"),
+      Computerhardware <- c("WDC"),
+      Computerspiele <- c("TTWO"),
+      Datenanalyse <- c("VRSK"),
+      Drogerieprodukte <- c("WBA"),
+      E_Commerce <- c("JD", "MELI"),
+      Einzelhandel <- c("FAST", "ROST")
+    )
+    symbols_Nasdaq <- stockSymbols("NASDAQ")[,c(1:2)]
+    symbols_Nasdaq <- na.omit(symbols_Nasdaq)
+    symbols_choice <- symbols[[as.numeric(input$branchen)]]
+    symbols <- symbols_Nasdaq[symbols_Nasdaq$Symbol %in% symbols_choice,]
+    
     if(input$dates[1] == input$dates[2]){
       for (i in 1:length(symbols$Symbol)){
         try(getSymbols(symbols$Symbol[i], from = "2017-12-31", to=as.character(Sys.Date()) ,auto.assign = T))}
@@ -125,8 +149,9 @@ server <- function(input, output, session) {
       for (i in 1:length(symbols$Symbol)){
         try(getSymbols(symbols$Symbol[i], from = as.character(input$dates[1]), to=as.character(input$dates[2]) ,auto.assign = T))}
     }
-    data_stock <- AACG
-    stocks_picked <<- symbols[symbols$Symbol %in% objects(),]
+    data_stock <- get(objects()[objects() %in% symbols_choice[1]])
+    stocks_picked <<- symbols_Nasdaq[symbols_Nasdaq$Symbol %in% objects(),]
+    
     output$stockOverview <- renderDataTable(stocks_picked,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
     output$stockOverviewFC <- renderDataTable(stocks_picked,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
     output$stockOverviewInd <- renderDataTable(stocks_picked,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
