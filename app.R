@@ -160,12 +160,13 @@ server <- function(input, output, session) {
     }
     data_stock <- get(objects()[objects() %in% symbols_choice[1]])
     stocks_picked <<- symbols_Nasdaq[symbols_Nasdaq$Symbol %in% objects(),]
-    
+
     output$stockOverview <- renderDataTable(stocks_picked,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
     output$stockOverviewFC <- renderDataTable(stocks_picked,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
     output$stockOverviewInd <- renderDataTable(stocks_picked,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
     output$stockOverviewBlog <- renderDataTable(stocks_picked,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
-    output$stockData <- renderDataTable(data_stock,options= list(scrollY = TRUE,pageLength = 5))
+    data_stock_overview <- as.data.frame(data_stock)
+    output$stockData <- renderDataTable(data_stock_overview,options= list(scrollY = TRUE,pageLength = 5))
     output$plotStock <- renderPlotly({
       data_plot <- data.frame("Date"= index(data_stock), "Adjusted" = select(as.data.frame(data_stock),contains("Adjusted")))
       names(data_plot) <- c("Date", "Adjusted")
