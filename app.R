@@ -44,10 +44,8 @@ ui <- dashboardPage(
             menuItem("Blogs", tabName = "blogs", icon = icon("th")),
             menuItem("Trades", tabName = "trades", icon = icon("th")),
             menuItem("Kursindikator", tabName = "kursindikator", icon = icon("th")),
-            menuItem("Recommandation", tabName = "recommandation", icon = icon("th"))
-           
-        )   
-        
+            menuItem("Recommendation", tabName = "recommendation", icon = icon("th"))
+        )
     ),
     #Body Content
     dashboardBody(
@@ -95,24 +93,6 @@ ui <- dashboardPage(
                     h2("Trades"),
                     box(width = 12,DTOutput("placeholder8"),title = "Fehlerausgabe")
             ),
-            tabItem(tabName = "recommandation",
-                    h2("Recommandation"),
-                    box(width = 6, actionButton("Button", label = "test1",width = '100%') , actionButton("Button1", label = "test2", width = '100%')),
-                    
-                    
-                   # # box(
-                   #  mainPanel(
-                   #    
-                   #    actionButton("buttontest", "Button 1"),
-                   #    actionButton("buttontes", "Button 2")        
-                   #            
-                   #            
-                   #            
-                   #            
-                   #  )
-                   
-                    
-            ),
             tabItem(tabName = "kursindikator",
                     h2("Kursindikatoren"),
                     tabBox(
@@ -128,14 +108,19 @@ ui <- dashboardPage(
                         plotlyOutput("plotIndMACD", height = 200),
                         plotlyOutput("plotIndRSI", height = 200)),
 
+            ),
+            tabItem(tabName = "recommendation",
+                    h2("Recommandation"),
+                    box(width = 12,
+                        box(width = 6,actionButton("recommendButton", label = "Recommend Stock", width = '100%')),
+                        box(width = 6,actionButton("saveButton", label = "Save Recommendation", width = '100%'))
+                    ),
+                    box(width = 12,DTOutput("recommendationOverview"),title = "Recommendation Overview")
+            )
 
-                    
         )
     )
 )
-)
-
-
 
 #server/logic content
 server <- function(input, output, session) {
