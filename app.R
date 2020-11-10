@@ -430,6 +430,7 @@ server <- function(input, output, session) {
     } 
   })
   observeEvent(input$recommendButton, {
+    stocks_recommendation <- data.frame("Stock" = as.character())
     for(i in 1:length(symbols_fields)){
       #load stocks after symbols
       symbols_Nasdaq <- stockSymbols("NASDAQ")[,c(1:2)]
@@ -446,9 +447,13 @@ server <- function(input, output, session) {
       }
       for(k in 1:nrow(symbols)){
         data_stock_recommend <- get(objects()[objects() %in% symbols_choice[k]])
-        print(head(data_stock_recommend))
-        #todo: very important DS stuff
-      }
+        #todo: very important DS stuff!!!1
+        browser()
+        stocks_recommendation <- rbind(stocks_recommendation, as.character(objects()[objects() %in% symbols_choice[k]]))
+        names(stocks_recommendation) <- "Stock"
+        stocks_recommendation$Stock <- as.character(stocks_recommendation$Stock) 
+        output$recommendationOverview <- renderDataTable(stocks_recommendation,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
+        }
 
       stocks_picked <<- symbols_Nasdaq[symbols_Nasdaq$Symbol %in% objects(),]
 
