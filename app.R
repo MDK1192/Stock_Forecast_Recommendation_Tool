@@ -95,13 +95,6 @@ ui <- dashboardPage(
             ),
             tabItem(tabName = "kursindikator",
                     h2("Kursindikatoren"),
-                    tabBox(
-                      title = "First tabBox",
-                      # The id lets us use input$tabset1 on the server to find the current tab
-                      id = "tabset1",
-                      tabPanel("Tab1", "Tab content 1"),
-                      tabPanel("Tab2", "Tab content 2")
-                    ),
                     box(width = 12,DTOutput("stockOverviewInd"),title = "Aktienuebersicht"),
                     box(width = 12, plotlyOutput("plotIndCore", height = 250)),
                     box(width = 12, 
@@ -131,7 +124,7 @@ server <- function(input, output, session) {
 
   observeEvent(input$loadButton, {
     #adding symbold from different areas
-    symbols <<- list(
+    symbols_fields <<- list(
       Anlagenbau <- c("AMAT","KLAC","LRCX"),
       Autoteile <- c("ORLY"),
       Billig_Gemischtwarenladen <- c("DLTR"),
@@ -147,7 +140,7 @@ server <- function(input, output, session) {
     )
     symbols_Nasdaq <- stockSymbols("NASDAQ")[,c(1:2)]
     symbols_Nasdaq <- na.omit(symbols_Nasdaq)
-    symbols_choice <- symbols[[as.numeric(input$branchen)]]
+    symbols_choice <- symbols_fields[[as.numeric(input$branchen)]]
     symbols <- symbols_Nasdaq[symbols_Nasdaq$Symbol %in% symbols_choice,]
     
     if(input$dates[1] == input$dates[2]){
@@ -436,6 +429,33 @@ server <- function(input, output, session) {
       output$analystTable <- renderDataTable(df_analyst,options= list(scrollY = TRUE,pageLength = 5))
     } 
   })
+  observeEvent(input$recommendButton, {
+    for(i in 1:length(symbols_fields)){
+      #load stocks after symbols
+      symbols_Nasdaq <- stockSymbols("NASDAQ")[,c(1:2)]
+      symbols_Nasdaq <- na.omit(symbols_Nasdaq)
+      symbols_choice <- symbols_fields[[i]]
+      symbols <- symbols_Nasdaq[symbols_Nasdaq$Symbol %in% symbols_choice,]
+      if(input$dates[1] == input$dates[2]){
+        for (j in 1:length(symbols$Symbol)){
+          try(getSymbols(symbols$Symbol[j], from = "2017-12-31", to=as.character(Sys.Date()) ,auto.assign = T))}
+      }
+      else{
+        for (j in 1:length(symbols$Symbol)){
+          try(getSymbols(symbols$Symbol[j], from = as.character(input$dates[1]), to=as.character(input$dates[2]) ,auto.assign = T))}
+      }
+      for(k in 1:nrow(symbols)){
+        data_stock_recommend <- get(objects()[objects() %in% symbols_choice[k]])
+        print(head(data_stock_recommend))
+        #todo: very important DS stuff
+      }
+
+      stocks_picked <<- symbols_Nasdaq[symbols_Nasdaq$Symbol %in% objects(),]
+
+    }
+    
+  })
+  
 }
 
 # performance <- read_html("https://www.marketwatch.com/investing/stock/aacg") %>%
