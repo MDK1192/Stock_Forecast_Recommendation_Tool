@@ -98,8 +98,8 @@ ui <- dashboardPage(
                     box(width = 12,DTOutput("stockOverviewInd"),title = "Aktienuebersicht"),
                     box(width = 12, plotlyOutput("plotIndCore", height = 250)),
                     box(width = 12, 
-                        plotlyOutput("plotIndMACD", height = 200),
-                        plotlyOutput("plotIndRSI", height = 200)),
+                        plotlyOutput("plotIndAROON", height = 200),
+                        plotlyOutput("plotIndCCI", height = 200)),
 
             ),
             tabItem(tabName = "recommendation",
@@ -377,25 +377,25 @@ server <- function(input, output, session) {
       data_stock <<- get(stocks_picked$Symbol[input$stockOverviewInd_rows_selected], envir = .GlobalEnv)
       data_plot <- data.frame("Date"= index(data_stock), "Adjusted" = select(as.data.frame(data_stock),contains("Adjusted")))
       names(data_plot) <- c("Date", "Adjusted")
-      data_plot$RSI <- RSI(data_plot$Adjusted)
-      data_plot$MACD1 <- MACD(data_plot$Adjusted)[,1]
-      data_plot$MACD2 <- MACD(data_plot$Adjusted)[,2]
-      names(data_plot) <- c("Date", "Adjusted", "RSI", "MACD1", "MACD2")
+      data_plot$CCI <- as.vector(CCI(data_plot$Adjusted))
+      data_plot$AROON_UP <- aroon(data_plot$Adjusted)[,1]
+      data_plot$AROON_DOWN <- aroon(data_plot$Adjusted)[,2]
+      data_plot$AROON_OSCILLITATOR <- aroon(data_plot$Adjusted)[,3]
+      names(data_plot) <- c("Date", "Adjusted", "CCI", "AROON_UP", "AROON_DOWN","AROON_OSCILLITATOR")
 
       output$plotIndCore <- renderPlotly({plot_ly(data_plot, x = ~Date, y = ~Adjusted, type = 'scatter', mode = 'lines', 
                 line = list(color = "rgb(0, 0, 0)")) %>% layout(title = "Date", xaxis = list(title = "Date", zeroline = FALSE), yaxis = list(title = "Price", zeroline = FALSE))})
-      output$plotIndMACD <- renderPlotly({
-        fig <- plot_ly(data_plot, x=~Date, y = ~MACD1, name = 'MACD', type = 'scatter', mode = 'lines')
-        fig <- fig %>% add_trace(y = ~MACD2, name = 'MACD_Signal', mode = 'lines')
-        fig
-        })
-        
-        
-        
        # plot_ly(data_plot, x = ~Date, y = ~MACD, type = 'scatter', mode = 'lines', 
       #                                              line = list(color = "rgb(0, 0, 0)")) %>% layout(title = "Date", xaxis = list(title = "Date", zeroline = FALSE), yaxis = list(title = "Price", zeroline = FALSE))})
-      output$plotIndRSI <- renderPlotly({plot_ly(data_plot, x = ~Date, y = ~RSI, type = 'scatter', mode = 'lines', 
-                                                  line = list(color = "rgb(0, 0, 0)")) %>% layout(title = "Date", xaxis = list(title = "Date", zeroline = FALSE), yaxis = list(title = "Price", zeroline = FALSE))})
+      output$plotIndAROON <- renderPlotly({
+        fig <- plot_ly(data_plot, x=~Date, y = ~AROON_UP, name = 'AROON_UP', type = 'scatter', mode = 'lines')
+        fig <- fig %>% add_trace(y = ~AROON_DOWN, name = 'AROON_DOWN', mode = 'lines')
+        fig <- fig %>% add_trace(y = ~AROON_OSCILLITATOR, name = 'AROON_OSCILLITATOR', mode = 'lines')
+        fig
+        
+      })
+      output$plotIndCCI <- renderPlotly({plot_ly(data_plot, x = ~Date, y = ~CCI,type = 'scatter', mode = 'lines',
+                                                 line = list(color = "rgb(0, 0, 0)")) %>% layout(title = "Date", xaxis = list(title = "Date", zeroline = FALSE), yaxis = list(title = "Price", zeroline = FALSE))})
         
         
     } 
