@@ -20,6 +20,10 @@ library(forecast)
 #library(RCrawler)
 library(DT)
 library(rvest)
+library(readxl)
+library(writexl)
+library(data.table)
+library(switchcase)
 
 #hallotest
 #faulty package disables functions -> investigate!
@@ -35,14 +39,13 @@ source("modules/module3.R")
 
 ui <- dashboardPage(
     #Header Content
-    dashboardHeader(title = "Stock Recommendation Dashboard"),
+    dashboardHeader(title = "SRE"),
     #Sidebar Content
     dashboardSidebar(
         sidebarMenu(
             menuItem("Aktien", tabName = "aktien", icon = icon("th")),
             menuItem("Forecast", tabName = "forecast", icon = icon("th")),
             menuItem("Blogs", tabName = "blogs", icon = icon("th")),
-            menuItem("Trades", tabName = "trades", icon = icon("th")),
             menuItem("Kursindikator", tabName = "kursindikator", icon = icon("th")),
             menuItem("Recommendation", tabName = "recommendation", icon = icon("th"))
         )
@@ -55,11 +58,11 @@ ui <- dashboardPage(
                     box(width = 12,
                         box(width = 3, dateRangeInput("dates", label = h3("Date range"))),
                         box(width = 6,radioButtons("branchen", label = h3("Branchen"),
-                                     choices = list("Anlagenbau" = 1, "Autoteile" = 2, "Billig-Gemischtwarenladen" = 3,
-                                                    "Biotechnologie" = 4, "Computer-Videospiele" = 5, "Computer-Einzelhandel" = 6,
-                                                    "Computerhardware" = 7, "Computerspiele" = 8, "Datenanalyse" = 9,
-                                                    "Drogerieprodukte" = 10, "E-Commerce" = 11, "Einzelhandel" = 12), 
-                                     selected = 1)),
+                                     choices = list("Infrakstruktur" = 1, "Finanzen" = 2, "Technologie" = 3,
+                                                    "Chemie" = 4, "Gesundheitswesen" = 5, "Konsumgueter" = 6,
+                                                    "Immobilien" = 7, "Fahrzeugindustrie" = 8, "Rohstoffe" = 9,
+                                                    "Sonstige" = 10),
+                                   selected = 1)),
                         box(width = 3, actionButton("loadButton", label = "Load Stockdata", width = '100%'))
                     ),
                     box(width = 12,
@@ -87,30 +90,19 @@ ui <- dashboardPage(
                             DTOutput("analystTable"),
                             title = "Performance  Empfehlungen"),
                         box(width = 4,DTOutput("stockOverviewBlog"),title = "Aktienuebersicht")),
-                    box(width = 12,DTOutput("placeholder7"),title = "Boersenblog3 tabellarisch")
-            ),
-            tabItem(tabName = "trades",
-                    h2("Trades"),
-                    box(width = 12,DTOutput("placeholder8"),title = "Fehlerausgabe")
+                    box(width = 12,DTOutput("newsTable"),title = "Boersenblog Nachrichten")
             ),
             tabItem(tabName = "kursindikator",
                     h2("Kursindikatoren"),
-                    tabBox(
-                      title = "First tabBox",
-                      # The id lets us use input$tabset1 on the server to find the current tab
-                      id = "tabset1",
-                      tabPanel("Tab1", "Tab content 1"),
-                      tabPanel("Tab2", "Tab content 2")
-                    ),
                     box(width = 12,DTOutput("stockOverviewInd"),title = "Aktienuebersicht"),
                     box(width = 12, plotlyOutput("plotIndCore", height = 250)),
                     box(width = 12, 
-                        plotlyOutput("plotIndMACD", height = 200),
-                        plotlyOutput("plotIndRSI", height = 200)),
-
+                        plotlyOutput("plotIndAROON", height = 200),
+                        plotlyOutput("plotIndCCI", height = 200),
+                        plotlyOutput("plotIndBBands", height = 200)),
             ),
             tabItem(tabName = "recommendation",
-                    h2("Recommandation"),
+                    h2("Recommendation"),
                     box(width = 12,
                         box(width = 6,actionButton("recommendButton", label = "Recommend Stock", width = '100%')),
                         box(width = 6,actionButton("saveButton", label = "Save Recommendation", width = '100%'))
@@ -124,32 +116,35 @@ ui <- dashboardPage(
 
 #server/logic content
 server <- function(input, output, session) {
-  
 
   
-
-
+  #code for importing data
   observeEvent(input$loadButton, {
+    
+    #read symbol_data
+    Stock_Data <<- read_excel("Stock_Data.xlsx", col_names =T, col_types = c("text","text","text"))
+    Stock_Data <<- na.omit(Stock_Data)
     #adding symbold from different areas
-    symbols <<- list(
-      Anlagenbau <- c("AMAT","KLAC","LRCX"),
-      Autoteile <- c("ORLY"),
-      Billig_Gemischtwarenladen <- c("DLTR"),
-      Biotechnologie <- c("AMGN","BIIB","BMRN","GILD","ILMN","SGEN"),
-      Computer_Videospiele <- c("ATVI","EA"),
-      Computer_Einzelhandel <- c("CDW"),
-      Computerhardware <- c("WDC"),
-      Computerspiele <- c("TTWO"),
-      Datenanalyse <- c("VRSK"),
-      Drogerieprodukte <- c("WBA"),
-      E_Commerce <- c("JD", "MELI"),
-      Einzelhandel <- c("FAST", "ROST")
+    symbols_fields <<- list(
+      Infrakstruktur <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Infrakstruktur"]),
+      Finanzen <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Finanzen"]),
+      Technologie <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Technologie"]),
+      Chemie <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Chemie"]),
+      Gesundheitswesen <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Gesundheitswesen"]),
+      Konsumgueter <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Konsumgüter"]),
+      Immobilien <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Immobilien"]),
+      Fahrzeugindustrie <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Fahrzeugindustrie"]),
+      Rohstoffe <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Rohstoffe"]),
+      Sonstige <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Sonstige"])
     )
-    symbols_Nasdaq <- stockSymbols("NASDAQ")[,c(1:2)]
+
+    #read in symbols from masterlist and prepare data
+    symbols_Nasdaq <- read_excel("symbols_Nasdaq.xlsx")
     symbols_Nasdaq <- na.omit(symbols_Nasdaq)
-    symbols_choice <- symbols[[as.numeric(input$branchen)]]
+    symbols_choice <- symbols_fields[[as.numeric(input$branchen)]]
     symbols <- symbols_Nasdaq[symbols_Nasdaq$Symbol %in% symbols_choice,]
     
+    #filter data according to input_dates from app and get data
     if(input$dates[1] == input$dates[2]){
       for (i in 1:length(symbols$Symbol)){
         try(getSymbols(symbols$Symbol[i], from = "2017-12-31", to=as.character(Sys.Date()) ,auto.assign = T))}
@@ -158,14 +153,18 @@ server <- function(input, output, session) {
       for (i in 1:length(symbols$Symbol)){
         try(getSymbols(symbols$Symbol[i], from = as.character(input$dates[1]), to=as.character(input$dates[2]) ,auto.assign = T))}
     }
+    
+    
     data_stock <- get(objects()[objects() %in% symbols_choice[1]])
     stocks_picked <<- symbols_Nasdaq[symbols_Nasdaq$Symbol %in% objects(),]
-    
+
+    #render datatables & visualizations for ui
     output$stockOverview <- renderDataTable(stocks_picked,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
     output$stockOverviewFC <- renderDataTable(stocks_picked,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
     output$stockOverviewInd <- renderDataTable(stocks_picked,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
     output$stockOverviewBlog <- renderDataTable(stocks_picked,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
-    output$stockData <- renderDataTable(data_stock,options= list(scrollY = TRUE,pageLength = 5))
+    data_stock_overview <- as.data.frame(data_stock)
+    output$stockData <- renderDataTable(data_stock_overview,options= list(scrollY = TRUE,pageLength = 5))
     output$plotStock <- renderPlotly({
       data_plot <- data.frame("Date"= index(data_stock), "Adjusted" = select(as.data.frame(data_stock),contains("Adjusted")))
       names(data_plot) <- c("Date", "Adjusted")
@@ -176,6 +175,7 @@ server <- function(input, output, session) {
                yaxis = list(title = "Price",
                             zeroline = FALSE))
     })
+    
     #export everything to global env.
     allglobal <- function() {
       lss <- ls(envir = parent.frame())
@@ -185,10 +185,17 @@ server <- function(input, output, session) {
     }
     allglobal()
   })
+  
+  
+  #code for landing page tab
   observeEvent(input$stockOverview_rows_selected, {
+    #reactive event if new stock is selected do below
     if (stocks_picked$Symbol[input$stockOverview_rows_selected] %in% ls(envir = .GlobalEnv)) {
+      #get global active stock object
       data_stock <<- get(stocks_picked$Symbol[input$stockOverview_rows_selected], envir = .GlobalEnv)
-      output$stockData <- renderDataTable(data_stock,options= list(scrollY = TRUE,pageLength = 5))
+      data_stock_overview <- as.data.frame(data_stock)
+      #render tables and visuals
+      output$stockData <- renderDataTable(data_stock_overview,options= list(scrollY = TRUE,pageLength = 5))
       output$plotStock <- renderPlotly({
         data_plot <- data.frame("Date"= index(data_stock), "Adjusted" = select(as.data.frame(data_stock),contains("Adjusted")))
         names(data_plot) <- c("Date", "Adjusted")
@@ -201,10 +208,16 @@ server <- function(input, output, session) {
       })
       } 
   })
+  #code for forecast tab
   observeEvent(input$stockOverviewFC_rows_selected, {
+    #reactive event if new stock is selected do below
     if (stocks_picked$Symbol[input$stockOverviewFC_rows_selected] %in% ls(envir = .GlobalEnv)) {
+      #get global active stock object
       data_stock <<- get(stocks_picked$Symbol[input$stockOverviewFC_rows_selected], envir = .GlobalEnv)
+      #render talbes and visuals
       output$plotforecast <- renderPlotly({
+        
+        #create trainset for fc according to sliders in ui
         data_fc  <- xts(x=data_stock)
         
         dates <- seq.Date(from=min(index(data_fc)), to=max(index(data_fc)) - input$trainslider, by="days")
@@ -215,7 +228,7 @@ server <- function(input, output, session) {
         xts <- xts(x=rep(NA, length(dates)), order.by=dates)
         data_fc <- na.locf(merge(xts, data_fc, join = "left"))
         
-        
+        #fit forecast models
         fc_meanf <- meanf(data_fc_train[,7],h=input$horizonslider)$mean
         fc_naive <- naive(data_fc_train[,7],h=input$horizonslider)$mean
         fc_snaive <- snaive(data_fc_train[,7],h=input$horizonslider)$mean
@@ -237,6 +250,7 @@ server <- function(input, output, session) {
         fc_nnetar <- nnetar(data_fc_train[,7], lambda=0) %>% forecast(h = input$horizonslider)
         fc_nnetar <- fc_nnetar$mean
         
+        #check for accuracy metrics
         if(input$trainslider != 0){
           train_ts <- anti_join(as.data.frame(data_fc), as.data.frame(data_fc_train))
           acc_fc_meanf <- accuracy(fc_meanf[1:length(train_ts[,7])], train_ts[,7])
@@ -268,6 +282,7 @@ server <- function(input, output, session) {
           }
         }
 
+        #create xtgs objects from fc
         dates <- seq.Date(from=max(index(data_fc_train)) + 1, to=max(index(data_fc_train)) + input$horizonslider, by="days")
         fc_meanf_xts <- xts(x=fc_meanf, order.by=dates)
         fc_naive_xts <- xts(x=fc_naive, order.by=dates)
@@ -285,6 +300,7 @@ server <- function(input, output, session) {
         fc_arima_xts <- xts(x=fc_arima, order.by=dates)
         fc_nnetar_xts <- xts(x=fc_nnetar, order.by=dates)
         
+        #create traces for visualization of forecasts
         trace_0 <- data.frame(date=index(data_fc_train), coredata(data_fc_train[,7]))
         if(input$trainslider != 0){
           trace_train <- data.frame(date=index(data_fc), coredata(data_fc[,7]))
@@ -318,11 +334,8 @@ server <- function(input, output, session) {
         data_fc_merged <- merge(data_fc_merged, trace_2, by="date", all.x = TRUE)
         data_fc_merged <- merge(data_fc_merged, trace_3, by="date", all.x = TRUE)
         data_fc_merged <- merge(data_fc_merged, trace_4, by="date", all.x = TRUE)
-        #data_fc_merged <- merge(data_fc_merged, trace_5, by="date", all.x = TRUE)
-        #data_fc_merged <- merge(data_fc_merged, trace_6, by="date", all.x = TRUE)
         data_fc_merged <- merge(data_fc_merged, trace_7, by="date", all.x = TRUE)
         data_fc_merged <- merge(data_fc_merged, trace_8, by="date", all.x = TRUE)
-        # #data_fc_merged <- merge(data_fc_merged, trace_9, by="date", all.x = TRUE)
         data_fc_merged <- merge(data_fc_merged, trace_10, by="date", all.x = TRUE)
         data_fc_merged <- merge(data_fc_merged, trace_11, by="date", all.x = TRUE)
         data_fc_merged <- merge(data_fc_merged, trace_12, by="date", all.x = TRUE)
@@ -330,9 +343,6 @@ server <- function(input, output, session) {
         data_fc_merged <- merge(data_fc_merged, trace_14, by="date", all.x = TRUE)
         data_fc_merged <- merge(data_fc_merged, trace_15, by="date", all.x = TRUE)
         
-        #"stlf",
-        #"croston","hw","ses", "holt", 
-        #"splinef","thetaf","ets", "tbats", "autoarima"
         if(input$trainslider != 0){
           names(data_fc_merged) <- c("date", "Price", "Price_Validation", "Ensemble_FC", "meanf", "naive", "snaive", 
         "rwf","ses", "holt","splinef","thetaf", "ets", "tbats", "arima", "nnetar")}
@@ -341,6 +351,7 @@ server <- function(input, output, session) {
                                      "rwf","ses", "holt","splinef","thetaf", "ets", "tbats", "arima", "nnetar")
         }
         
+        #plot forecast data data
         fig <- plot_ly(data_fc_merged, x=~date, y = ~Price, name = 'Price', type = 'scatter', mode = 'lines')
         if(input$trainslider != 0){
         fig <- fig %>% add_trace(y = ~Price_Validation, name = 'Price_Validation', mode = 'lines')
@@ -350,11 +361,8 @@ server <- function(input, output, session) {
         fig <- fig %>% add_trace(y = ~naive, name = 'naive', mode = 'lines')
         fig <- fig %>% add_trace(y = ~snaive, name = 'snaive', mode = 'lines')
         fig <- fig %>% add_trace(y = ~rwf, name = 'rwf', mode = 'lines')
-        #fig <- fig %>% add_trace(y = ~croston, name = 'croston', mode = 'lines')
-        #fig <- fig %>% add_trace(y = ~stlf, name = 'stlf', mode = 'lines')
         fig <- fig %>% add_trace(y = ~ses, name = 'ses', mode = 'lines')
         fig <- fig %>% add_trace(y = ~holt, name = 'holt', mode = 'lines')
-        # fig <- fig %>% add_trace(y = ~hw, name = 'hw', mode = 'lines')
         fig <- fig %>% add_trace(y = ~splinef, name = 'splinef', mode = 'lines')
         fig <- fig %>% add_trace(y = ~thetaf, name = 'thetaf', mode = 'lines')
         fig <- fig %>% add_trace(y = ~ets, name = 'ets', mode = 'lines')
@@ -364,49 +372,58 @@ server <- function(input, output, session) {
         fig
       })
     } 
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
   })
+  
+  #code for indicator tab
   observeEvent(input$stockOverviewInd_rows_selected, {
+    #reactive event if new stock is selected do below
     if (stocks_picked$Symbol[input$stockOverviewInd_rows_selected] %in% ls(envir = .GlobalEnv)) {
+      #get global active stock object
       data_stock <<- get(stocks_picked$Symbol[input$stockOverviewInd_rows_selected], envir = .GlobalEnv)
       data_plot <- data.frame("Date"= index(data_stock), "Adjusted" = select(as.data.frame(data_stock),contains("Adjusted")))
+      #create indicators based on data
       names(data_plot) <- c("Date", "Adjusted")
-      data_plot$RSI <- RSI(data_plot$Adjusted)
-      data_plot$MACD1 <- MACD(data_plot$Adjusted)[,1]
-      data_plot$MACD2 <- MACD(data_plot$Adjusted)[,2]
-      names(data_plot) <- c("Date", "Adjusted", "RSI", "MACD1", "MACD2")
+      data_plot$CCI <- as.vector(CCI(data_plot$Adjusted))
+      data_plot$AROON_UP <- aroon(data_plot$Adjusted)[,1]
+      data_plot$AROON_DOWN <- aroon(data_plot$Adjusted)[,2]
+      data_plot$AROON_OSCILLITATOR <- aroon(data_plot$Adjusted)[,3]
+      data_plot$BB_DOWN <- BBands(data_plot$Adjusted)[,1]
+      data_plot$BB_AVG <- BBands(data_plot$Adjusted)[,2]
+      data_plot$BB_UP <- BBands(data_plot$Adjusted)[,3]
+      names(data_plot) <- c("Date", "Adjusted", "CCI", "AROON_UP", "AROON_DOWN","AROON_OSCILLITATOR", "BB_DOWN", "BB_AVG", "BB_UP")
 
+      #plot data with indicators
       output$plotIndCore <- renderPlotly({plot_ly(data_plot, x = ~Date, y = ~Adjusted, type = 'scatter', mode = 'lines', 
-                line = list(color = "rgb(0, 0, 0)")) %>% layout(title = "Date", xaxis = list(title = "Date", zeroline = FALSE), yaxis = list(title = "Price", zeroline = FALSE))})
-      output$plotIndMACD <- renderPlotly({
-        fig <- plot_ly(data_plot, x=~Date, y = ~MACD1, name = 'MACD', type = 'scatter', mode = 'lines')
-        fig <- fig %>% add_trace(y = ~MACD2, name = 'MACD_Signal', mode = 'lines')
+                line = list(color = "rgb(0, 0, 0)")) %>% layout(title = "Overview", xaxis = list(title = "Date", zeroline = FALSE), yaxis = list(title = "Price", zeroline = FALSE))})
+      output$plotIndAROON <- renderPlotly({
+        fig <- plot_ly(data_plot, x=~Date, y = ~AROON_UP, name = 'AROON_UP', type = 'scatter', mode = 'lines')
+        fig <- fig %>% add_trace(y = ~AROON_DOWN, name = 'AROON_DOWN', mode = 'lines')
+        fig <- fig %>% add_trace(y = ~AROON_OSCILLITATOR, name = 'AROON_OSCILLITATOR', mode = 'lines')
         fig
-        })
         
+      })
+      output$plotIndBBands <- renderPlotly({
+        fig <- plot_ly(data_plot, x=~Date, y = ~BB_DOWN, name = 'BB_DOWN', type = 'scatter', mode = 'lines')
+        fig <- fig %>% add_trace(y = ~BB_AVG, name = 'BB_AVG', mode = 'lines')
+        fig <- fig %>% add_trace(y = ~BB_UP, name = 'BB_UP', mode = 'lines')
+        fig
         
-        
-       # plot_ly(data_plot, x = ~Date, y = ~MACD, type = 'scatter', mode = 'lines', 
-      #                                              line = list(color = "rgb(0, 0, 0)")) %>% layout(title = "Date", xaxis = list(title = "Date", zeroline = FALSE), yaxis = list(title = "Price", zeroline = FALSE))})
-      output$plotIndRSI <- renderPlotly({plot_ly(data_plot, x = ~Date, y = ~RSI, type = 'scatter', mode = 'lines', 
-                                                  line = list(color = "rgb(0, 0, 0)")) %>% layout(title = "Date", xaxis = list(title = "Date", zeroline = FALSE), yaxis = list(title = "Price", zeroline = FALSE))})
+      })
+      output$plotIndCCI <- renderPlotly({plot_ly(data_plot, x = ~Date, y = ~CCI,type = 'scatter', mode = 'lines',
+                                                 line = list(color = "rgb(0, 0, 0)")) %>% layout(xaxis = list(title = "Date", zeroline = FALSE), yaxis = list(title = "CCI", zeroline = FALSE))})
         
         
     } 
   })
+  #code for blog tab
   observeEvent(input$stockOverviewBlog_rows_selected,{
+    #reactive event if new stock is selected do below
+    #get global active stock object
+    Stock_Data <- get("Stock_Data", envir = .GlobalEnv)
+    active_stock <- tolower(Stock_Data$Name[Stock_Data$Symbol %in% stocks_picked$Symbol[input$stockOverviewBlog_rows_selected]])
+    active_stock <- gsub(" group", "",active_stock)
+    active_stock <- gsub(" ", "_",active_stock)
+    #get data from websites via webscraping
     if (stocks_picked$Symbol[input$stockOverviewBlog_rows_selected] %in% ls(envir = .GlobalEnv)) {
       data_stock <<- get(stocks_picked$Symbol[input$stockOverviewBlog_rows_selected], envir = .GlobalEnv)
       address_performance <- paste0("https://www.marketwatch.com/investing/stock/",tolower(stocks_picked$Symbol[input$stockOverviewBlog_rows_selected]))
@@ -417,41 +434,287 @@ server <- function(input, output, session) {
       analyst_opinions <- read_html(address_analyst) %>%
         html_nodes(".analyst-ratings, .value") %>%
         html_text()
-
-      analyst_opinions <- na.omit(as.numeric(analyst_opinions))
+      expert_opinions <- data.frame(Buy=analyst_opinions[11], Overweight=analyst_opinions[14],Hold=analyst_opinions[17], Underweight=analyst_opinions[20], Sell=analyst_opinions[23])
       df_performance <- data.frame("5 Day" = performance[9], "1 Month" = performance[10], "3 Month" = performance[11], "YTD" = performance[12], "1 Year" =performance[13])
       names(df_performance) <- c("5 Day", "1 Month", "3 Month", "YTD", "1 Year")
-      if(length(analyst_opinions) >= 5){
-        df_analyst <- data.frame(analyst_opinions[length(analyst_opinions) - 4],
-                                 analyst_opinions[length(analyst_opinions) - 3],
-                                 analyst_opinions[length(analyst_opinions) - 2],
-                                 analyst_opinions[length(analyst_opinions) - 1],
-                                 analyst_opinions[length(analyst_opinions)])
-      }
-      else(df_analyst <- data.frame("Buy"="no data", "Overweight"="no data", "Hold"="no data", "Underweight"="no data", "Sell"="no data"))
-
-      names(df_analyst) <- c("Buy", "Overweight", "Hold", "Underweight", "Sell")
       output$performanceTable <- renderDataTable(df_performance,options= list(scrollY = TRUE,pageLength = 5))
-      output$analystTable <- renderDataTable(df_analyst,options= list(scrollY = TRUE,pageLength = 5))
-    } 
+      output$analystTable <- renderDataTable(expert_opinions,options= list(scrollY = TRUE,pageLength = 5))
+      output$newsTable <- renderDataTable({
+        url <- paste0("https://www.finanzen.net/news/", active_stock,"-news")
+        #urls <- read_html("https://www.finanzen.net/news/bayer-news") %>%
+        urls <- read_html(url) %>%
+          html_nodes("td a") %>%
+          html_attr("href")
+        blog_df <- data.frame(Teaser = "Placeholder", Url = urls[urls %like% "/nachricht/aktien/"])
+        blog_df$Url <- as.character(blog_df$Url)
+        blog_df <- distinct(blog_df, Url,.keep_all = FALSE)
+        blog_df$Teaser <- "Placeholder"
+        n <- 15
+        if(nrow(blog_df) < 15){n <- nrow(blog_df)}
+        for(i in c(1:n)){
+          try(blog_df$Url[i] <- as.character(paste0("https://www.finanzen.net",blog_df$Url[i])))
+          try(blog_df$Teaser[i] <- read_html(blog_df$Url[i]) %>%
+              html_node(".teaser-snapshot") %>%
+              html_text())
+            try(len <- strsplit(blog_df$Teaser[i], " -W-"))
+            if(length(len[[1]]) > 1){
+              strsplit(blog_df$Teaser[i], " -W-")
+              blog_df$Teaser[i] <- strsplit(blog_df$Teaser[i], " -W-")[[1]][length(strsplit(blog_df$Teaser[i], " -W-")[[1]])]
+            }
+            else(blog_df$Teaser[i] <- NA)
+          }
+        
+        createLink <- function(val) {
+          sprintf('<a href="https://www.google.com/#q=%s" target="_blank" class="btn btn-primary">Info</a>',val)
+        }
+        blog_df$Teaser[blog_df$Teaser == "Placeholder"] <- NA
+        blog_df <- na.omit(blog_df)
+        if(nrow(blog_df)>0){
+          blog_df <- blog_df[c(1:nrow(blog_df)),]
+          rownames(blog_df) <- 1:nrow(blog_df)
+          blog_df$Url <- createLink(blog_df$Url)
+        }
+        else(blog_df <- data.frame(Status="No data found"))
+        return(blog_df)
+        }, escape = FALSE)
+      
+      } 
   })
+  #code for recommend tab
+  observeEvent(input$recommendButton, {
+    #reactive event if new stock is selected do below
+    #read symbol_data
+    Stock_Data <<- read_excel("Stock_Data.xlsx", col_names =T, col_types = c("text","text","text"))
+    Stock_Data <<- na.omit(Stock_Data)
+    #adding symbold from different areas
+    symbols_fields <<- list(
+      Infrakstruktur <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Infrakstruktur"]),
+      Finanzen <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Finanzen"]),
+      Technologie <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Technologie"]),
+      Chemie <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Chemie"]),
+      Gesundheitswesen <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Gesundheitswesen"]),
+      Konsumgueter <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Konsumgüter"]),
+      Immobilien <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Immobilien"]),
+      Fahrzeugindustrie <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Fahrzeugindustrie"]),
+      Rohstoffe <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Rohstoffe"]),
+      Sonstige <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Sonstige"])
+    )
+    #run recommendation loop with all above functionalities build recommendation based on result
+    stocks_recommendation <- data.frame("Stock" = as.character(),"Symbol" = as.character(), "Forecast"= as.character(), "Indicator"= as.character(), "Expert_Opinion"= as.character(), "Performance"= as.character(), "Total"=as.character())
+    for(i in 1:length(symbols_fields)){
+      #load stocks after symbols
+      symbols_Nasdaq <- read_excel("symbols_Nasdaq.xlsx")
+      symbols_Nasdaq <- na.omit(symbols_Nasdaq)
+      symbols_choice <- symbols_fields[[i]]
+      symbols <- symbols_Nasdaq[symbols_Nasdaq$Symbol %in% symbols_choice,]
+      if(input$dates[1] == input$dates[2]){
+        for (j in 1:length(symbols$Symbol)){
+          try(getSymbols(symbols$Symbol[j], from = "2017-12-31", to=as.character(Sys.Date()) ,auto.assign = T))}
+      }
+      else{
+        for (j in 1:length(symbols$Symbol)){
+          try(getSymbols(symbols$Symbol[j], from = as.character(input$dates[1]), to=as.character(input$dates[2]) ,auto.assign = T))}
+      }
+      for(k in 1:nrow(symbols)){
+        current_stock <- as.character(symbols$Name[k])
+        current_symbol <- as.character(symbols$Symbol[k])
+        data_stock_recommend <- get(objects()[objects() %in% symbols_choice[k]])
+
+        #forecast evaluation
+        data_fc  <- xts(x=data_stock_recommend)
+        
+        dates <- seq.Date(from=min(index(data_fc)), to=max(index(data_fc)) - 30, by="days")
+        xts <- xts(x=rep(NA, length(dates)), order.by=dates)
+        data_fc_train <- na.locf(merge(xts, data_fc, join = "left"))
+        
+        dates <- seq.Date(from=min(index(data_fc)), to=max(index(data_fc)), by="days")
+        xts <- xts(x=rep(NA, length(dates)), order.by=dates)
+        data_fc <- na.locf(merge(xts, data_fc, join = "left"))
+        
+        
+        fc_meanf <- meanf(data_fc_train[,7],h=60)$mean
+        fc_naive <- naive(data_fc_train[,7],h=60)$mean
+        fc_snaive <- snaive(data_fc_train[,7],h=60)$mean
+        fc_rwf <- rwf(data_fc_train[,7],h=60)$mean
+        # #fc_croston <- croston(data_fc_train[,7],h=60)$mean
+        # only for seas.
+        # #fc_stlf <- stlf(data_fc_train[,7],h=60)$mean
+        fc_ses <- ses(data_fc_train[,7],h=60)$mean
+        fc_holt <- holt(data_fc_train[,7],h=60)$mean
+        # #fc_hw <- hw(data_fc_train[,7],h=60)$mean
+        fc_splinef <- splinef(data_fc_train[,7],h=60)$mean
+        fc_thetaf <- thetaf(data_fc_train[,7],h=60)$mean
+        fc_ets <- ets(data_fc_train[,7]) %>% forecast(h = 60) 
+        fc_ets <- fc_ets$mean
+        fc_tbats <- tbats(as.numeric(data_fc_train[,7])) %>% forecast(h = 60)
+        fc_tbats <- fc_tbats$mean
+        fc_arima <- auto.arima(data_fc_train[,7]) %>% forecast(h = 60)
+        fc_arima <- fc_arima$mean
+        fc_nnetar <- nnetar(data_fc_train[,7], lambda=0) %>% forecast(h = 60)
+        fc_nnetar <- fc_nnetar$mean
+        
+          train_ts <- anti_join(as.data.frame(data_fc), as.data.frame(data_fc_train))
+          acc_fc_meanf <- accuracy(fc_meanf[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_naive <- accuracy(fc_naive[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_snaive <- accuracy(fc_snaive[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_rwf <- accuracy(fc_rwf[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_ses <- accuracy(fc_ses[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_holt <- accuracy(fc_holt[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_splinef <- accuracy(fc_splinef[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_thetaf <- accuracy(fc_thetaf[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_ets <- accuracy(fc_ets[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_tbats <- accuracy(fc_tbats[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_arima <- accuracy(fc_arima[1:length(train_ts[,7])], train_ts[,7])
+          acc_fc_nnetar <- accuracy(fc_nnetar[1:length(train_ts[,7])], train_ts[,7])
+          acc_df <- as.data.frame(rbind(acc_fc_meanf, acc_fc_naive, acc_fc_snaive, acc_fc_rwf, acc_fc_ses, 
+                                        acc_fc_holt, acc_fc_splinef, acc_fc_thetaf, acc_fc_ets, acc_fc_tbats,
+                                        acc_fc_arima, acc_fc_nnetar))
+          
+          row.names(acc_df) <- c("meanf", "naive", "snaive", "rwf","ses", "holt","splinef","thetaf", "ets", "tbats", "arima", "nnetar")
+          output$accuracyOverview <- renderDataTable(acc_df, options= list(scrollY = TRUE,pageLength = 5))
+          #Build FC_Ensemble
+          top_scores_RMSE <- data.frame(acc_df[order(acc_df$RMSE),])
+          models <- row.names(top_scores_RMSE[1:3,])
+          multiplier <- c(0.5, 0.3, 0.2)
+          ensemble_fc <- rep(0,1,length(fc_meanf))
+          for(i in 1: length(multiplier)){
+            model_fc <- as.numeric(get(paste0("fc_",models[i])))
+            model_fc_weighted <- model_fc * multiplier[i]
+            ensemble_fc <- ensemble_fc + model_fc_weighted
+          }
+          result_ensemble_fc <- ensemble_fc[length(ensemble_fc)]/ensemble_fc[1]
+          switchCase(
+            result_ensemble_fc,
+            alt(..expr <= 1,{current_ensmble_fc <- 1}),
+            alt(..expr > 1 & ..expr < 1.1,{current_ensmble_fc <- 2}),
+            alt(..expr > 1.1 & ..expr < 1.2,{current_ensmble_fc <- 3}),
+            alt(..expr > 1.2 & ..expr < 1.3,{current_ensmble_fc <- 4}),
+            alt(..expr > 1.3 & ..expr < 1.4,{current_ensmble_fc <- 5}),
+            alt(..expr > 1.4 & ..expr < 1.5,{current_ensmble_fc <- 6}),
+            alt(..expr > 1.5 & ..expr < 1.6,{current_ensmble_fc <- 7}),
+            alt(..expr > 1.6 & ..expr < 1.7,{current_ensmble_fc <- 8}),
+            alt(..expr > 1.7 & ..expr < 1.8,{current_ensmble_fc <- 9}),
+            alt(..expr > 1.8,{current_ensmble_fc <- 10})
+          )
+          
+        #expert & performance evaluation
+        address_performance <- paste0("https://www.marketwatch.com/investing/stock/",tolower(symbols_choice[k]))
+        address_analyst <- paste0("https://www.marketwatch.com/investing/stock/", tolower(symbols_choice[k]), "/analystestimates?mod=mw_quote_analyst")
+        performance <- read_html(address_performance) %>%
+          html_nodes(".right, .value") %>%
+          html_text()
+        analyst_opinions <- read_html(address_analyst) %>%
+          html_nodes(".analyst-ratings, .value") %>%
+          html_text()
+        expert_opinions <- data.frame(Buy=analyst_opinions[11], Overweight=analyst_opinions[14],Hold=analyst_opinions[17], Underweight=analyst_opinions[20], Sell=analyst_opinions[23])
+        df_performance <- data.frame("5 Day" = performance[9], "1 Month" = performance[10], "3 Month" = performance[11], "YTD" = performance[12], "1 Year" =performance[13])
+        names(df_performance) <- c("5 Day", "1 Month", "3 Month", "YTD", "1 Year")
+        df_performance$`5 Day` = as.numeric(substr(as.character(df_performance$`5 Day`),1,nchar(as.character(df_performance$`5 Day`))-1))
+        df_performance$`1 Month` = as.numeric(substr(as.character(df_performance$`1 Month`),1,nchar(as.character(df_performance$`1 Month`))-1))
+        df_performance$`3 Month` = as.numeric(substr(as.character(df_performance$`3 Month`),1,nchar(as.character(df_performance$`3 Month`))-1))
+        df_performance$`YTD` = as.numeric(substr(as.character(df_performance$`YTD`),1,nchar(as.character(df_performance$`YTD`))-1))
+        df_performance$`1 Year` = as.numeric(substr(as.character(df_performance$`1 Year`),1,nchar(as.character(df_performance$`1 Year`))-1))
+        
+        current_performance <- df_performance$`1 Year`
+ 
+        switchCase(
+          current_performance,
+          alt(..expr <= 10,{current_performance <- 1}),
+          alt(..expr > 10 & ..expr < 20,{current_performance <- 2}),
+          alt(..expr > 20 & ..expr < 30,{current_performance <- 3}),
+          alt(..expr > 30 & ..expr < 40,{current_performance <- 4}),
+          alt(..expr > 40 & ..expr < 50,{current_performance <- 5}),
+          alt(..expr > 50 & ..expr < 60,{current_performance <- 6}),
+          alt(..expr > 60 & ..expr < 70,{current_performance <- 7}),
+          alt(..expr > 70 & ..expr < 80,{current_performance <- 8}),
+          alt(..expr > 80 & ..expr < 90,{current_performance <- 9}),
+          alt(..expr > 90,{current_performance <- 10})
+        )
+
+        expert_opinions$Buy <- as.numeric(as.character(expert_opinions$Buy))
+        expert_opinions$Overweight <- as.numeric(as.character(expert_opinions$Overweight))
+        expert_opinions$Hold <- as.numeric(as.character(expert_opinions$Hold))
+        expert_opinions$Underweight <- as.numeric(as.character(expert_opinions$Underweight))
+        expert_opinions$Sell <- as.numeric(as.character(expert_opinions$Sell))
+
+        current_expert <- names(which.max(expert_opinions))
+        if(!is.null(current_expert)){
+          switchCase(
+            current_expert,
+            alt(..expr == "Sell",{current_expert <- 1}),
+            alt(..expr == "Underweight",{current_expert <- 2}),
+            alt(..expr == "Hold",{current_expert <- 3}),
+            alt(..expr == "Overweight",{current_expert <- 4}),
+            alt(..expr == "Buy",{current_expert <- 5})
+          )
+          if(sum(expert_opinions) == 0){current_expert <- 0}
+        }
+        else(current_expert <- 0)
+        
+
+
+        #indicator evaluation
+        data_indicator <- data.frame("Date"= index(data_stock_recommend), "Adjusted" = select(as.data.frame(data_stock_recommend),contains("Adjusted")))
+        names(data_indicator) <- c("Date", "Adjusted")
+        data_indicator$CCI <- as.vector(CCI(data_indicator$Adjusted))
+        data_indicator$AROON_UP <- aroon(data_indicator$Adjusted)[,1]
+        data_indicator$AROON_DOWN <- aroon(data_indicator$Adjusted)[,2]
+        data_indicator$AROON_OSCILLITATOR <- aroon(data_indicator$Adjusted)[,3]
+        data_indicator$BB_DOWN <- BBands(data_indicator$Adjusted)[,1]
+        data_indicator$BB_AVG <- BBands(data_indicator$Adjusted)[,2]
+        data_indicator$BB_UP <- BBands(data_indicator$Adjusted)[,3]
+        names(data_indicator) <- c("Date", "Adjusted", "CCI", "AROON_UP", "AROON_DOWN","AROON_OSCILLITATOR", "BB_DOWN", "BB_AVG", "BB_UP")
+        if(data_indicator$CCI[nrow(data_indicator)] >= data_indicator$CCI[nrow(data_indicator) - 14]){current_indicator_cci <- 1}
+        else(current_indicator_cci <- 0)
+        if((data_indicator$AROON_UP[nrow(data_indicator)] >= data_indicator$AROON_UP[nrow(data_indicator) - 5]) && data_indicator$AROON_UP[nrow(data_indicator)] >= 80){current_indicator_aroon <- 1}
+        else(current_indicator_aroon <- 0)
+        if(data_indicator$BB_AVG[nrow(data_indicator)] >= data_indicator$BB_AVG[nrow(data_indicator) - 7]){
+          if((abs(data_indicator$BB_DOWN[nrow(data_indicator) - 5] - data_indicator$BB_UP[nrow(data_indicator) - 5]) <= 
+             abs(data_indicator$BB_DOWN[nrow(data_indicator) - 3] - data_indicator$BB_UP[nrow(data_indicator) - 3])) &&
+             (abs(data_indicator$BB_DOWN[nrow(data_indicator) - 3] - data_indicator$BB_UP[nrow(data_indicator) - 3]) <= 
+             abs(data_indicator$BB_DOWN[nrow(data_indicator) - 1] - data_indicator$BB_UP[nrow(data_indicator) - 1])))
+            {current_indicator_bb <- 1}
+        }
+        else(current_indicator_bb <- 0)
+        #joining data for recommentation table
+        current_indicator <- sum(current_indicator_cci, current_indicator_aroon, current_indicator_bb)
+
+        switchCase(
+          current_performance,
+          alt(..expr <= 1,{current_performance <- 1}),
+          alt(..expr > 1 & ..expr < 1.1,{current_performance <- 2}),
+          alt(..expr > 1.1 & ..expr < 1.2,{current_performance <- 3}),
+          alt(..expr > 1.2 & ..expr < 1.3,{current_performance <- 4}),
+          alt(..expr > 1.3 & ..expr < 1.4,{current_performance <- 5}),
+          alt(..expr > 1.4 & ..expr < 1.5,{current_performance <- 6}),
+          alt(..expr > 1.5 & ..expr < 1.6,{current_performance <- 7}),
+          alt(..expr > 1.6 & ..expr < 1.7,{current_performance <- 8}),
+          alt(..expr > 1.7 & ..expr < 1.8,{current_performance <- 9}),
+          alt(..expr > 1.8,{current_performance <- 10})
+        )
+
+        #stocks_recommendation <- rbind(stocks_recommendation, as.character(objects()[objects() %in% symbols_choice[k]]))
+        stocks_recommendation[,1] <- as.character(stocks_recommendation[,1])
+        stocks_recommendation[,2] <- as.character(stocks_recommendation[,2])
+        stocks_recommendation[,3] <- as.character(stocks_recommendation[,3])
+        stocks_recommendation[,4] <- as.character(stocks_recommendation[,4])
+        stocks_recommendation[,5] <- as.character(stocks_recommendation[,5])
+        stocks_recommendation[,6] <- as.character(stocks_recommendation[,6])
+        stocks_recommendation[,7] <- as.character(stocks_recommendation[,7])
+        sum_value <- sum(as.numeric(current_ensmble_fc), as.numeric(current_indicator), as.numeric(current_expert), as.numeric(current_performance))
+        current_row <- c(as.character(current_stock), as.character(current_symbol),as.character(current_ensmble_fc), as.character(current_indicator), as.character(current_expert), as.character(current_performance), as.character(sum_value))
+                             
+        stocks_recommendation <- rbind(stocks_recommendation, current_row)
+        
+        names(stocks_recommendation) <- c("Stock","Symbol", "Forecast", "Indicator", "Expert Opinion", "Performance", "Total")
+        }
+
+      stocks_picked <- symbols_Nasdaq[symbols_Nasdaq$Symbol %in% objects(),]
+
+    }
+    #visualize recommendation table
+    output$recommendationOverview <- renderDataTable(stocks_recommendation,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
+  })
+  
 }
-
-# performance <- read_html("https://www.marketwatch.com/investing/stock/aacg") %>%
-#   html_nodes(".right, .value") %>%
-#   html_text()
-
-
-# 
-# 
-# html_table(x, header = NA, trim = TRUE, fill = FALSE, dec = ".")
-# 
-# div:nth-child(3)
-# 
-# https://www.marketwatch.com/investing/stock/aacg/analystestimates?mod=mw_quote_analyst
-
-
-#https://www.marketwatch.com/investing/stock/aacg
-#https://www.cnbc.com/quotes/?symbol=aacg&qsearchterm=aacg
-
 shinyApp(ui, server)
