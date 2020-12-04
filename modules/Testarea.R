@@ -12,6 +12,56 @@ library(imputeTS)
 library(tsibble)
 library(TTR)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ui <- dashboardPage(
+  #Header Content
+  dashboardHeader(title = "CAD"),
+  #Sidebar Content
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Landing Page", tabName = "landing", icon = icon("th")),
+      menuItem("Images", tabName = "images", icon = icon("th"))
+    )
+  ),
+  #Body Content
+  dashboardBody(
+    tabItems(
+      tabItem(tabName = "landing",
+              h2("Landingpage"),
+              box(width = 12,
+                  
+              )
+      ),
+      tabItem(tabName = "images",
+              h2("Images")
+      )
+    )
+  )
+)
+
+
+
+
 getSymbols(auto.assign = T)
 
 getSymbols('TSLA', from = "2000-01-01", to = "2016-06-30", auto.assign = T)

@@ -54,16 +54,16 @@ ui <- dashboardPage(
     dashboardBody(
         tabItems(
             tabItem(tabName = "aktien",
-                    h2("Aktien Uebersicht"),
+                    h2("Landingpage"),
                     box(width = 12,
-                        box(width = 3, dateRangeInput("dates", label = h3("Date range"))),
+                        box(width = 3, dateRangeInput("dates", label = h3("Zeitraum"))),
                         box(width = 6,radioButtons("branchen", label = h3("Branchen"),
                                      choices = list("Infrakstruktur" = 1, "Finanzen" = 2, "Technologie" = 3,
                                                     "Chemie" = 4, "Gesundheitswesen" = 5, "Konsumgueter" = 6,
                                                     "Immobilien" = 7, "Fahrzeugindustrie" = 8, "Rohstoffe" = 9,
                                                     "Sonstige" = 10),
                                    selected = 1)),
-                        box(width = 3, actionButton("loadButton", label = "Load Stockdata", width = '100%'))
+                        box(width = 3, actionButton("loadButton", label = "Aktienkurse laden", width = '100%'))
                     ),
                     box(width = 12,
                         box(width = 8,plotlyOutput("plotStock"),title = "Kursuebersicht grafisch"),
@@ -75,8 +75,8 @@ ui <- dashboardPage(
                     h2("Forecast"),
                     box(width = 12,
                         box(width = 8,
-                            sliderInput("horizonslider", label = h3("Forecast Horizon"), min = 31, max = 365, value = 50),
-                            sliderInput("trainslider", label = h3("Forecast Validation window"), min = 0, max = 30, value = 0),
+                            sliderInput("horizonslider", label = h3("Forecast Horizont"), min = 31, max = 365, value = 50),
+                            sliderInput("trainslider", label = h3("Forecast Validation"), min = 0, max = 30, value = 0),
                         ),
                         box(width = 4,DTOutput("stockOverviewFC"),title = "Aktienuebersicht")),
                     box(width = 12, plotlyOutput("plotforecast"),title = "Forecasts grafisch"),
@@ -88,7 +88,7 @@ ui <- dashboardPage(
                         box(width = 8,
                             DTOutput("performanceTable"),
                             DTOutput("analystTable"),
-                            title = "Performance  Empfehlungen"),
+                            title = "Performance und Empfehlungen"),
                         box(width = 4,DTOutput("stockOverviewBlog"),title = "Aktienuebersicht")),
                     box(width = 12,DTOutput("newsTable"),title = "Boersenblog Nachrichten")
             ),
@@ -107,7 +107,7 @@ ui <- dashboardPage(
                         box(width = 6,actionButton("recommendButton", label = "Recommend Stock", width = '100%')),
                         box(width = 6,actionButton("saveButton", label = "Save Recommendation", width = '100%'))
                     ),
-                    box(width = 12,DTOutput("recommendationOverview"),title = "Recommendation Overview")
+                    box(width = 12,DTOutput("recommendationOverview"),title = "Recommendation Uebersicht")
             )
 
         )
@@ -144,6 +144,7 @@ server <- function(input, output, session) {
     symbols_choice <- symbols_fields[[as.numeric(input$branchen)]]
     symbols <- symbols_Nasdaq[symbols_Nasdaq$Symbol %in% symbols_choice,]
     
+
     #filter data according to input_dates from app and get data
     if(input$dates[1] == input$dates[2]){
       for (i in 1:length(symbols$Symbol)){
@@ -482,6 +483,7 @@ server <- function(input, output, session) {
   })
   #code for recommend tab
   observeEvent(input$recommendButton, {
+
     #reactive event if new stock is selected do below
     #read symbol_data
     Stock_Data <<- read_excel("Stock_Data.xlsx", col_names =T, col_types = c("text","text","text"))
@@ -501,6 +503,8 @@ server <- function(input, output, session) {
     )
     #run recommendation loop with all above functionalities build recommendation based on result
     stocks_recommendation <- data.frame("Stock" = as.character(),"Symbol" = as.character(), "Forecast"= as.character(), "Indicator"= as.character(), "Expert_Opinion"= as.character(), "Performance"= as.character(), "Total"=as.character())
+    #add subset for demo
+    symbols_fields <- symbols_fields[[1]][1:5]
     for(i in 1:length(symbols_fields)){
       #load stocks after symbols
       symbols_Nasdaq <- read_excel("symbols_Nasdaq.xlsx")
@@ -713,8 +717,12 @@ server <- function(input, output, session) {
 
     }
     #visualize recommendation table
+    stocks_recommendation <<- stocks_recommendation
     output$recommendationOverview <- renderDataTable(stocks_recommendation,selection=list(mode="single"), options= list(scrollY = TRUE,pageLength = 5))
   })
-  
+  observeEvent(input$saveButton, {
+    #save recommendation
+    try(write_xlsx(stocks_recommendation, paste0("stock_recommendation", Sys.Date(),".xlsx")))
+  })
 }
 shinyApp(ui, server)
