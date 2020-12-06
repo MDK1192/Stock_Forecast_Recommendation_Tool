@@ -61,7 +61,7 @@ ui <- dashboardPage(
                                      choices = list("Infrakstruktur" = 1, "Finanzen" = 2, "Technologie" = 3,
                                                     "Chemie" = 4, "Gesundheitswesen" = 5, "Konsumgueter" = 6,
                                                     "Immobilien" = 7, "Fahrzeugindustrie" = 8, "Rohstoffe" = 9,
-                                                    "Sonstige" = 10),
+                                                    "Sonstige" = 10, "Sample"=11),
                                    selected = 1)),
                         box(width = 3, actionButton("loadButton", label = "Aktienkurse laden", width = '100%'))
                     ),
@@ -135,7 +135,8 @@ server <- function(input, output, session) {
       Immobilien <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Immobilien"]),
       Fahrzeugindustrie <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Fahrzeugindustrie"]),
       Rohstoffe <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Rohstoffe"]),
-      Sonstige <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Sonstige"])
+      Sonstige <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Sonstige"]),
+      Sample <- c("AAPL", "AMZN", "EBAY", "MSFT", "TSLA", "VOD", "SBUX", "EA", "FB" ,"EXPE", "INTC", "AAL", "NFLX", "TXN", "ADSK")
     )
 
     #read in symbols from masterlist and prepare data
@@ -143,8 +144,6 @@ server <- function(input, output, session) {
     symbols_Nasdaq <- na.omit(symbols_Nasdaq)
     symbols_choice <- symbols_fields[[as.numeric(input$branchen)]]
     symbols <- symbols_Nasdaq[symbols_Nasdaq$Symbol %in% symbols_choice,]
-    
-
     #filter data according to input_dates from app and get data
     if(input$dates[1] == input$dates[2]){
       for (i in 1:length(symbols$Symbol)){
@@ -499,12 +498,13 @@ server <- function(input, output, session) {
       Immobilien <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Immobilien"]),
       Fahrzeugindustrie <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Fahrzeugindustrie"]),
       Rohstoffe <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Rohstoffe"]),
-      Sonstige <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Sonstige"])
+      Sonstige <- as.vector(Stock_Data$Symbol[Stock_Data$Branche == "Sonstige"]),
+      Sample <- c("AAPL", "AMZN", "EBAY", "MSFT", "TSLA", "VOD", "SBUX", "EA", "FB" ,"EXPE", "INTC", "AAL", "NFLX", "TXN", "ADSK")
     )
     #run recommendation loop with all above functionalities build recommendation based on result
     stocks_recommendation <- data.frame("Stock" = as.character(),"Symbol" = as.character(), "Forecast"= as.character(), "Indicator"= as.character(), "Expert_Opinion"= as.character(), "Performance"= as.character(), "Total"=as.character())
     #add subset for demo
-    symbols_fields <- symbols_fields[[1]][1:5]
+    symbols_fields <- symbols_fields[[11]]
     for(i in 1:length(symbols_fields)){
       #load stocks after symbols
       symbols_Nasdaq <- read_excel("symbols_Nasdaq.xlsx")
@@ -677,11 +677,13 @@ server <- function(input, output, session) {
              abs(data_indicator$BB_DOWN[nrow(data_indicator) - 3] - data_indicator$BB_UP[nrow(data_indicator) - 3])) &&
              (abs(data_indicator$BB_DOWN[nrow(data_indicator) - 3] - data_indicator$BB_UP[nrow(data_indicator) - 3]) <= 
              abs(data_indicator$BB_DOWN[nrow(data_indicator) - 1] - data_indicator$BB_UP[nrow(data_indicator) - 1])))
-            {current_indicator_bb <- 1}
+          {current_indicator_bb <- 1}
+          else(current_indicator_bb <- 0)
         }
         else(current_indicator_bb <- 0)
         #joining data for recommentation table
-        current_indicator <- sum(current_indicator_cci, current_indicator_aroon, current_indicator_bb)
+        
+        try(current_indicator <- sum(current_indicator_cci, current_indicator_aroon, current_indicator_bb))
 
         switchCase(
           current_performance,
